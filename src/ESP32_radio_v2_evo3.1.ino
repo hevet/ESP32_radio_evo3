@@ -2480,6 +2480,7 @@ void readStationFromSD()
   else
   {
     Serial.println("Plik station_nr.txt nie istnieje.");
+     station_nr = 9; // ustawiamy stacje w przypadku braku pliku na karcie  
   }
 
   // Sprawdź, czy plik bank_nr.txt istnieje
@@ -2501,6 +2502,8 @@ void readStationFromSD()
   else
   {
     Serial.println("Plik bank_nr.txt nie istnieje.");
+    bank_nr = 1; // // ustawiamy bank w przypadku braku pliku na karcie
+
   }
 }
 
@@ -2714,7 +2717,7 @@ void setup()
     
     u8g2.setFont(spleen6x12PL);
     u8g2.clearBuffer();
-    u8g2.drawStr(10, 23, "Pobieranie stacji z:");	
+    u8g2.drawStr(10, 23, "Loading station from:");	
     fetchStationsFromServer();
     changeStation();
     //getWeatherData();
@@ -3025,7 +3028,7 @@ void loop()
     bankMenuEnable = false;
     u8g2.setFont(spleen6x12PL);
     u8g2.clearBuffer();
-    u8g2.drawStr(10, 23, "Pobieranie stacji z:");
+    u8g2.drawStr(10, 23, "Loading station from:");
 		u8g2.sendBuffer();
     
     currentSelection = 0;
