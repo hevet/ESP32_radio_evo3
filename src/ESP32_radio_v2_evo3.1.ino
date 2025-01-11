@@ -97,7 +97,7 @@ int fileFromBuffer = 0;           // Numer aktualnie wybranego pliku do przywró
 int folderIndex = 0;              // Numer aktualnie wybranego folderu podczas przełączenia do odtwarzania z karty SD
 int folderFromBuffer = 0;         // Numer aktualnie wybranego folderu do przywrócenia na ekran po bezczynności																										 
 int totalFilesInFolder = 0;       // Zmienna przechowująca łączną liczbę plików w folderze
-int volumeValue = 12;             // Wartość głośności, domyślnie ustawiona na 12
+int volumeValue = 10;             // Wartość głośności, domyślnie ustawiona na 10
 int cycle = 0;                    // Numer cyklu do danych pogodowych wyświetlanych w trzech rzutach co 10 sekund
 int maxVisibleLines = 4;          // Maksymalna liczba widocznych linii na ekranie OLED
 int bitrateStringInt = 0;         // Deklaracja zmiennej do konwersji Bitrate string na wartosc Int aby podzelic bitrate przez 1000
@@ -128,6 +128,7 @@ bool button_3 = false;            // Flaga określająca stan przycisku 3
 bool button_4 = false;            // Flaga określająca stan przycisku 4
 bool volumeSet = false;           // Flaga wejscia menu regulacji głosnosci
 bool vuMeterOn = true;           // Flaga właczajaca wskazniki VU
+bool vuMeterMode = false;         // tryb rysowania vuMeter
 bool action3Taken = false;        // Flaga Akcji 3 - załaczenia VU
 bool action4Taken = false;        // Flaga Akcji 4 - uzycie diplsayRadio
 bool ActionNeedUpdateTime = false;
@@ -730,13 +731,14 @@ void handleButtons()
         volumeSet = false;
         timeDisplay = false;
         bankMenuEnable = false;
-        vuMeterOn = !vuMeterOn;
-        u8g2.clearBuffer();
-        u8g2.setCursor(0,13);
-        u8g2.print("VUmeters:");
-        u8g2.print(vuMeterOn);
-        Serial.print("Wartość flagi VUmeterOn:");
-        Serial.println(vuMeterOn);
+        //vuMeterOn = !vuMeterOn;
+        vuMeterMode = !vuMeterMode;
+        //u8g2.clearBuffer();
+        //u8g2.setCursor(0,13);
+        //u8g2.print("VUmeters mode:");
+        //u8g2.print(vuMeterOn);
+        Serial.print("Wartość flagi VUmeter mode:");
+        Serial.println(vuMeterMode);
         action3Taken = true;
       }
 
@@ -1468,7 +1470,7 @@ void audio_showstreamtitle(const char *info)
   stationString = String(info);
   if (currentOption == INTERNET_RADIO)
   {
-   // action4Taken = false;
+  
    displayRadio();
   }
 }
@@ -1821,7 +1823,11 @@ void displayRadio()
   u8g2.setFont(u8g2_font_fub14_tf);
   stationName = stationName.substring(0, 22);
   u8g2.drawStr(0, 16, stationName.c_str());
-  u8g2.drawLine(0,21,255,21);
+  
+  if (vuMeterMode == 1) // rysujemy linijke pod nazwa stacji tylko w trybie 1 vumeter
+  { 
+   u8g2.drawLine(0,21,255,21);
+  }
   //u8g2.drawStr(0, 29, stationName.c_str());
 
   // Funkcja wyswietlania numeru Banku i Stacji
@@ -2299,8 +2305,8 @@ void updateTimerFlag()
 void updateTimer()
 {
   // Wypełnij spacjami, aby wyczyścić pole
-  u8g2.drawStr(208, 63, "         "); // czyszczenie pola zegara
-  u8g2.drawStr(128, 63, "    "); // czyszczenie pola FLAC/MP3/AAC
+  //u8g2.drawStr(208, 63, "         "); // czyszczenie pola zegara
+  //u8g2.drawStr(128, 63, "    "); // czyszczenie pola FLAC/MP3/AAC
 
   // Zwiększ licznik sekund
   seconds++;
@@ -2515,24 +2521,38 @@ void vuMeter()
   vuMeterL = audio.getVUlevel() & 0xFF;  // wyciagamy ze zmiennej typu int16 kanał L
   vuMeterR = (audio.getVUlevel() >> 8); // z wyzszej polowki wyciagamy kanal P
   
-  vuMeterL = (vuMeterL >> 1); // dzielimy przez 2 -> przesuniecie o jeden bit abyz  255 -> 64
-  vuMeterR = (vuMeterR >> 1);
+  //vuMeterL = (vuMeterL >> 1); // dzielimy przez 2 -> przesuniecie o jeden bit abyz  255 -> 64
+  //vuMeterR = (vuMeterR >> 1);
 
+  
   //u8g2.drawFrame(0,39,132,14);
   u8g2.setDrawColor(0);
-  u8g2.drawBox(2,41,129,3); //czyszczenie ekranu pod VU meter
-  u8g2.drawBox(2,46,129,3);
-        
+  u8g2.drawBox(2,41,253,3); //czyszczenie ekranu pod VU meter
+  u8g2.drawBox(2,46,253,3);
+  
   u8g2.setDrawColor(1);
-  u8g2.drawBox(2,41,vuMeterL,3); // rysujemy kreseczki o dlugosci odpowiadajacej wartosci VU
-  u8g2.drawBox(2,46,vuMeterR,3);
 
+  if (vuMeterMode == 1) // tryb 1 ciagle paski
+  {       
+    u8g2.setDrawColor(1);
+    u8g2.drawBox(2,41,vuMeterL,3); // rysujemy kreseczki o dlugosci odpowiadajacej wartosci VU
+    u8g2.drawBox(2,46,vuMeterR,3);
+  
+  }   
+  else  // vuMeterMode == 0  tryb podstawowy, kreseczki z przerwami
+  {  
+    for (uint8_t vusize = 0; vusize < vuMeterL; vusize++)
+    {
+      u8g2.drawBox(vusize,41,8,2);
+      vusize = vusize + 8;
+    }
 
-  //u8g2.drawDLine(2,41,vuMeterL,41,1);
-  //u8g2.drawDLine(2,42,vuMeterL,42,1);
-  //u8g2.drawDLine(2,43,vuMeterL,43,1);
-
-
+    for (uint8_t vusize = 0; vusize < vuMeterR; vusize++)
+    {
+      u8g2.drawBox(vusize,46,8,2);
+      vusize = vusize + 8;
+    }
+  } 
 }
 
 void displayRadioScroller()
@@ -2736,6 +2756,7 @@ void setup()
     u8g2.sendBuffer();	
   }
   wifiManager.setConfigPortalBlocking(true);  
+  displayRadio();
 }
 
 void loop()
@@ -3066,6 +3087,11 @@ void loop()
   */
   //if (flac == true) 
   //{ scrollingRefresh == 1000;}
+  if (action4Taken = false)  // aktualizujemy zegar ale tylko raz przy starcie zanim wejdziemy do funkcji millis
+  {
+    updateTimer();  
+    action4Taken = true;
+  }
 
   if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true) )
   {
