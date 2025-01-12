@@ -143,14 +143,15 @@ unsigned long seconds = 0;                // Licznik sekund timera
 unsigned int EEPROM_lenght = MAX_STATIONS * (STATION_NAME_LENGTH);
 uint8_t StationNameStreamWidth = 0;       // Test pełnej nazwy stacji
 uint8_t x = 0;
-unsigned long vuMeterTime;                // Czas opznienia odswiezania wskaznikow VU w milisekundach
-uint8_t vuMeterL;                         // Wartosc VU dla L kanału zakres 0-255
-uint8_t vuMeterR;                         // Wartosc VU dla R kanału zakres 0-255
-unsigned long debugTime;                  // Timer wywolujacy print funkcji przenzaczony do wyswietlenia debugu
-unsigned long scrollingStationStringTime;  // Czas do odswiezania scorllingu
-unsigned long scrollingRefresh = 80;      // Czas przewijania tekstu
-uint16_t stationStringWidth;               //szerokosc Stringu nazwy stacji
-uint16_t xPositionStationString = 0;               // Pozycja początkowa dla przewijania tekstu StationString
+unsigned long vuMeterTime;                  // Czas opznienia odswiezania wskaznikow VU w milisekundach
+uint8_t vuMeterL;                           // Wartosc VU dla L kanału zakres 0-255
+uint8_t vuMeterR;                           // Wartosc VU dla R kanału zakres 0-255
+unsigned long debugTime;                    // Timer wywolujacy print funkcji przenzaczony do wyswietlenia debugu
+unsigned long scrollingStationStringTime;   // Czas do odswiezania scorllingu
+unsigned long scrollingRefresh = 50;        // Czas przewijania tekstu
+unsigned long scrollingRefreshFlac = 500;   // Czas przewijania i refreshu VU, czasu przy streame FLAC
+uint16_t stationStringWidth;                //szerokosc Stringu nazwy stacji
+uint16_t xPositionStationString = 0;        // Pozycja początkowa dla przewijania tekstu StationString
 uint16_t offset;
 
 String stationStringScroll = "";
@@ -1829,8 +1830,9 @@ void displayRadio()
   //u8g2.setFont(DotMatrix13pl);
   u8g2.setFont(u8g2_font_fub14_tf);
   stationName = stationName.substring(0, 22);
-  u8g2.drawStr(25, 16, stationName.c_str());
-  
+  u8g2.drawStr(27, 16, stationName.c_str());
+  //u8g2.drawStr(0, 16, stationName.c_str());
+
   if (vuMeterMode == 1) // rysujemy linijke pod nazwa stacji tylko w trybie 1 vumeter
   { 
    u8g2.drawLine(0,21,255,21);
@@ -1848,14 +1850,14 @@ void displayRadio()
   
   u8g2.setDrawColor(1);
   u8g2.drawBox(159,54,1,12); // dorysowujemy 1px pasek przed cziocnką poniewaz cziocnka 6x12 aktywne ma 5 px dla literki i 1px spacji za literką
-  //u8g2.drawRBox(234,1,22,16,4); // Rbox pod numerem stacji
+  //u8g2.drawRBox(225,1,30,16,4); // Rbox pod numerem stacji
   u8g2.drawRBox(1,1,21,16,4); // Rbox pod numerem stacji
   
   u8g2.setDrawColor(0);
   u8g2.setFont(u8g2_font_spleen8x16_mr);
   char StationStr[5]; 
   snprintf(StationStr, sizeof(StationStr), "%02d",station_nr); //Formatowanie informacji o stacji i baku do postaci 00 
-  //u8g2.setCursor(238, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
+  //u8g2.setCursor(228, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
   u8g2.setCursor(4, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
   u8g2.print(StationStr);
   
@@ -1953,50 +1955,51 @@ void processText(String &text)
       case (char)0xC2:
         switch (text[i+1])
         {
-          case (char)0xB3: text.setCharAt(i, 0xB3); break; // Zamiana "ł" na "l"
-          case (char)0x9C: text.setCharAt(i, 0x9C); break; // Zamiana "ś" na "s"
-          case (char)0x8C: text.setCharAt(i, 0x8C); break; // Zamiana "Ś" na "S"
-          case (char)0xB9: text.setCharAt(i, 0xB9); break; // Zamiana "ą" na "a"
-          case (char)0x9B: text.setCharAt(i, 0xEA); break; // Zamiana "ę" na "e"
-          case (char)0xBF: text.setCharAt(i, 0xBF); break; // Zamiana "ż" na "z"
-          case (char)0x9F: text.setCharAt(i, 0x9F); break; // Zamiana "ź" na "z"
+          case (char)0xB3: text.setCharAt(i, 0xB3); break; // Zamiana na "ł"
+          case (char)0x9C: text.setCharAt(i, 0x9C); break; // Zamiana na "ś"
+          case (char)0x8C: text.setCharAt(i, 0x8C); break; // Zamiana na "Ś" 
+          case (char)0xB9: text.setCharAt(i, 0xB9); break; // Zamiana na "ą" 
+          case (char)0x9B: text.setCharAt(i, 0xEA); break; // Zamiana na "ę" 
+          case (char)0xBF: text.setCharAt(i, 0xBF); break; // Zamiana na "ż" 
+          case (char)0x9F: text.setCharAt(i, 0x9F); break; // Zamiana na "ź" 
         }
         text.remove(i+1, 1);
         break;
       case (char)0xC3:
         switch (text[i+1])
         {
-          case (char)0xB1: text.setCharAt(i, 0xF1); break; // Zamiana "ń" na "n"
-          case (char)0xB3: text.setCharAt(i, 0xF3); break; // Zamiana "ó" na "o"
-          case (char)0xBA: text.setCharAt(i, 0x9F); break; // Zamiana "ź" na "z"
-          case (char)0xBB: text.setCharAt(i, 0xAF); break; // Zamiana "Ż" na "Z"
+          case (char)0xB1: text.setCharAt(i, 0xF1); break; // Zamiana na "ń"
+          case (char)0xB3: text.setCharAt(i, 0xF3); break; // Zamiana na "ó"
+          case (char)0xBA: text.setCharAt(i, 0x9F); break; // Zamiana na "ź"
+          case (char)0xBB: text.setCharAt(i, 0xAF); break; // Zamiana na "Ż"
+          case (char)0x93: text.setCharAt(i, 0xD3); break; // Zamiana na "Ó"
         }
         text.remove(i+1, 1);
         break;
       case (char)0xC4:
         switch (text[i+1])
         {
-          case (char)0x85: text.setCharAt(i, 0xB9); break; // Zamiana "ą" na "a"
-          case (char)0x99: text.setCharAt(i, 0xEA); break; // Zamiana "ę" na "e"
-          case (char)0x87: text.setCharAt(i, 0xE6); break; // Zamiana "ć" na "c"
-          case (char)0x84: text.setCharAt(i, 0xA5); break; // Zamiana "Ą" na "A"
-          case (char)0x98: text.setCharAt(i, 0xCA); break; // Zamiana "Ę" na "E"
-          case (char)0x86: text.setCharAt(i, 0xC6); break; // Zamiana "Ć" na "C"
+          case (char)0x85: text.setCharAt(i, 0xB9); break; // Zamiana na "ą"
+          case (char)0x99: text.setCharAt(i, 0xEA); break; // Zamiana na "ę"
+          case (char)0x87: text.setCharAt(i, 0xE6); break; // Zamiana na "ć"
+          case (char)0x84: text.setCharAt(i, 0xA5); break; // Zamiana na "Ą"
+          case (char)0x98: text.setCharAt(i, 0xCA); break; // Zamiana na "Ę"
+          case (char)0x86: text.setCharAt(i, 0xC6); break; // Zamiana na "Ć"
         }
         text.remove(i+1, 1);
         break;
       case (char)0xC5:
         switch (text[i+1])
         {
-          case (char)0x82: text.setCharAt(i, 0xB3); break; // Zamiana "ł" na "l"
-          case (char)0x84: text.setCharAt(i, 0xF1); break; // Zamiana "ń" na "n"
-          case (char)0x9B: text.setCharAt(i, 0x9C); break; // Zamiana "ś" na "s"
-          case (char)0xBB: text.setCharAt(i, 0xAF); break; // Zamiana "Ż" na "Z"
-          case (char)0xBC: text.setCharAt(i, 0xBF); break; // Zamiana "ż" na "z"
-          case (char)0x83: text.setCharAt(i, 0xD1); break; // Zamiana "Ń" na "N"
-          case (char)0x9A: text.setCharAt(i, 0x97); break; // Zamiana "Ś" na "S"
-          case (char)0x81: text.setCharAt(i, 0xA3); break; // Zamiana "Ł" na "L"
-          case (char)0xB9: text.setCharAt(i, 0xAC); break; // Zamiana "Ź" na "Z"
+          case (char)0x82: text.setCharAt(i, 0xB3); break; // Zamiana na "ł"
+          case (char)0x84: text.setCharAt(i, 0xF1); break; // Zamiana na "ń"
+          case (char)0x9B: text.setCharAt(i, 0x9C); break; // Zamiana na "ś"
+          case (char)0xBB: text.setCharAt(i, 0xAF); break; // Zamiana na "Ż"
+          case (char)0xBC: text.setCharAt(i, 0xBF); break; // Zamiana na "ż"
+          case (char)0x83: text.setCharAt(i, 0xD1); break; // Zamiana na "Ń"
+          case (char)0x9A: text.setCharAt(i, 0x97); break; // Zamiana na "Ś"
+          case (char)0x81: text.setCharAt(i, 0xA3); break; // Zamiana na "Ł"
+          case (char)0xB9: text.setCharAt(i, 0xAC); break; // Zamiana na "Ź"
         }
         text.remove(i+1, 1);
         break;
@@ -2633,7 +2636,7 @@ void vuMeter()
   {  
     for (uint8_t vusize = 0; vusize < vuMeterL; vusize++)
     {
-      u8g2.drawBox(vusize,41,8,2);
+      u8g2.drawBox(vusize,41,8,2); 
       vusize = vusize + 8;
     }
 
@@ -3159,35 +3162,12 @@ void loop()
     //u8g2.sendBuffer();
   }
 
-  /*if (millis() - vuMeterTime   > 60 && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (flac == false) && (timeDisplay == true) && vuMeterOn == true)
-  {
-    //(stationString.length() == 0)
-    vuMeterTime = millis();
-    
-    vuMeterL = audio.getVUlevel() & 0xFF;
-    vuMeterR = (audio.getVUlevel() >> 8);
-   
-    vuMeterL = (vuMeterL >> 1);
-    vuMeterR = (vuMeterR >> 1);
-
-    u8g2.setDrawColor(0);
-    u8g2.drawBox(0,41,128,3);
-    u8g2.drawBox(0,47,128,3);
-    
-    u8g2.setDrawColor(1);
-    u8g2.drawBox(0,41,vuMeterL,3);
-    u8g2.drawBox(0,47,vuMeterR,3);
-    u8g2.nextPage();
-  } 
-  */
-  //if (flac == true) 
-  //{ scrollingRefresh == 1000;}
   if (action4Taken = false)  // aktualizujemy zegar ale tylko raz przy starcie zanim wejdziemy do funkcji millis
   {
     updateTimer();  
     action4Taken = true;
   }
-
+ 
   if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true) )
   {
     scrollingStationStringTime = millis();
@@ -3200,7 +3180,7 @@ void loop()
     
     displayRadioScroller(); // wykonujemy przewijanie tekstu station stringi przygotowujemy bufor ekranu
     
-    if (vuMeterOn == true)  //&& (flac == false) jesli właczone sa wskazniki VU to rysujemy, dla stacji FLAC wyłaczamy aby nie bylo cieci w streamie 
+    if (vuMeterOn == true && flac == false)  //&& (flac == false) jesli właczone sa wskazniki VU to rysujemy, dla stacji FLAC wyłaczamy aby nie bylo cieci w streamie 
     {    
       vuMeter();
     } 
