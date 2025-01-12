@@ -1,4 +1,5 @@
-# ESP32 Web Radio Evo with mp3,flac Files Player
+# ESP32 Web Radio Evo3
+current code rev3.1
  
 Hardware: ESP32-S3 dev kit, SD/micro SD card reader, 256x64 OLED display
 
