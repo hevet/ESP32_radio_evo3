@@ -20,6 +20,8 @@
 //#include <ArduinoJson.h>          // Biblioteka do parsowania i tworzenia danych w formacie JSON, użyteczna do pracy z API
 #include <Time.h>                 // Biblioteka do obsługi funkcji związanych z czasem, np. odczytu daty i godziny
 
+#define softwareRev "v3.1"        // wersja oprogramowania
+
 // definicja pinow czytnika karty SD
 #define SD_CS 47                  // Pin CS (Chip Select) dla karty SD wybierany jako interfejs SPI
 #define SD_SCLK 45                // Pin SCK (Serial Clock) dla karty SD
@@ -28,7 +30,7 @@
 
 // Definicja pinow dla wyswietlacza OLED
 #define SPI_MOSI_OLED   39        // Pin MOSI (Master Out Slave In) dla interfejsu SPI OLED
-#define SPI_MISO_OLED   -1        // Pin MISO (Master In Slave Out) brak dla wyswietlacza OLED
+#define SPI_MISO_OLED   0        // Pin MISO (Master In Slave Out) brak dla wyswietlacza OLED
 #define SPI_SCK_OLED    38        // Pin SCK (Serial Clock) dla interfejsu SPI OLED
 #define CS_OLED         42        // Pin CS (Chip Select) dla interfejsu OLED
 #define DC_OLED         40        // Pin DC (Data/Command) dla interfejsu OLED
@@ -45,7 +47,7 @@
 #define CLK_PIN2 10               // Podłączenie z pinu 10 do CLK na enkoderze
 #define DT_PIN2  11               // Podłączenie z pinu 11 do DT na enkoderze lewym
 #define SW_PIN2  1                // Podłączenie z pinu 1 do SW na enkoderze lewym (przycisk)
-#define MAX_STATIONS 100           // Maksymalna liczba stacji radiowych, które mogą być przechowywane w jednym banku
+#define MAX_STATIONS 95           // Maksymalna liczba stacji radiowych, które mogą być przechowywane w jednym banku
 #define STATION_NAME_LENGTH 42     // Nazwa stacji wraz z bankiem i numerem stacji do wyświetlenia w pierwszej linii na ekranie
 #define MAX_FILES 100             // Maksymalna liczba plików lub katalogów w tablicy directories
 
@@ -1007,7 +1009,8 @@ void saveStationToEEPROM(const char* station)
 void changeStation()
 {  
   mp3 = flac = aac = false;
-  stationString.remove(0);  // Usunięcie wszystkich znaków z obiektu stationString
+  stationFromBuffer = station_nr;
+  stationString.remove(0);  // Usunięcie wszystkich znaków z obiektu stationString  
 
   // Tworzymy nazwę pliku banku
   String fileName = String("/bank") + (bank_nr < 10 ? "0" : "") + String(bank_nr) + ".txt";
@@ -1113,25 +1116,30 @@ void readSDStations()
   int currentLine = 0;
   String stationUrl = "";
   
-  while (bankFile.available())
+  while (bankFile.available())  // & currentLine <= MAX_STATIONS)
   {
-    String line = bankFile.readStringUntil('\n');
-    currentLine++;
-	
- 	  //currentLine == station_nr
-	  stationName = line.substring(0, 42);
-	  int urlStart = line.indexOf("http");  // Szukamy miejsca, gdzie zaczyna się URL
-	  if (urlStart != -1)
-	  {
-      stationUrl = line.substring(urlStart);  // Wyciągamy URL od "http"
-      stationUrl.trim();  // Usuwamy białe znaki na początku i końcu
-		  ////Serial.print(" URL stacji:");
-		  ///Serial.println(stationUrl);
-      //String station = currentLine + "   " + stationName + "  " + stationUrl;
-      String station = stationName + "  " + stationUrl;
-      sanitizeAndSaveStation(station.c_str()); // przepisanie stacji do EEPROMu  (RAMU)
-	  }
+    //if (currentLine < MAX_STATIONS)
+    //{
+      String line = bankFile.readStringUntil('\n');
+      currentLine++;
+    
+      //currentLine == station_nr
+      stationName = line.substring(0, 42);
+      int urlStart = line.indexOf("http");  // Szukamy miejsca, gdzie zaczyna się URL
+      if (urlStart != -1)
+      {
+        stationUrl = line.substring(urlStart);  // Wyciągamy URL od "http"
+        stationUrl.trim();  // Usuwamy białe znaki na początku i końcu
+        ////Serial.print(" URL stacji:");
+        ///Serial.println(stationUrl);
+        //String station = currentLine + "   " + stationName + "  " + stationUrl;
+        String station = stationName + "  " + stationUrl;
+        sanitizeAndSaveStation(station.c_str()); // przepisanie stacji do EEPROMu  (RAMU)
+      }
+    //}
   }
+  Serial.print("Zamykamy plik bankFile wartosc currentLine:");
+  Serial.println(currentLine);
   bankFile.close();  // Zamykamy plik po odczycie
 }
 
@@ -1817,12 +1825,11 @@ void displayRadio()
 {
   Serial.println("debug---displayRadio inside void");
   u8g2.clearBuffer();	
-  //u8g2.setFont(spleen6x12PL);
-  //u8g2.drawStr(1, 12, "NET RADIO");
-  
+    
+  //u8g2.setFont(DotMatrix13pl);
   u8g2.setFont(u8g2_font_fub14_tf);
   stationName = stationName.substring(0, 22);
-  u8g2.drawStr(0, 16, stationName.c_str());
+  u8g2.drawStr(25, 16, stationName.c_str());
   
   if (vuMeterMode == 1) // rysujemy linijke pod nazwa stacji tylko w trybie 1 vumeter
   { 
@@ -1830,34 +1837,39 @@ void displayRadio()
   }
   //u8g2.drawStr(0, 29, stationName.c_str());
 
-  // Funkcja wyswietlania numeru Banku i Stacji
+  // Funkcja wyswietlania numeru Banku na dole ekranu
   u8g2.setFont(spleen6x12PL);
-  char BankStationStr[8]; 
-  char StationStr[5]; 
-
-  //Formatowanie informacji o stacji i baku do postaci S-1699 
-  snprintf(BankStationStr, sizeof(BankStationStr), "Bank %02d", bank_nr);  
-  snprintf(StationStr, sizeof(StationStr), "S%003d",station_nr); //Formatowanie informacji o stacji i baku do postaci S-1699 
+  char BankStr[8]; //Formatowanie informacji o Banku do postaci Bank 00 
+  snprintf(BankStr, sizeof(BankStr), "Bank %02d", bank_nr);  
   
-
-
-
-  u8g2.setDrawColor(1);
-  u8g2.drawBox(159,54,1,12); // dorysowujemy 1px pasek przed cziocnką poniewaz cziocnka 6x12 aktywne ma 5 px dla literki i 1px spacji za literką
   u8g2.setDrawColor(0);
   u8g2.setCursor(160, 63);  // pozycja napisu Bank 0x na dole ekranu
-  u8g2.print(BankStationStr);
+  u8g2.print(BankStr);
+  
+  u8g2.setDrawColor(1);
+  u8g2.drawBox(159,54,1,12); // dorysowujemy 1px pasek przed cziocnką poniewaz cziocnka 6x12 aktywne ma 5 px dla literki i 1px spacji za literką
+  //u8g2.drawRBox(234,1,22,16,4); // Rbox pod numerem stacji
+  u8g2.drawRBox(1,1,21,16,4); // Rbox pod numerem stacji
+  
+  u8g2.setDrawColor(0);
+  u8g2.setFont(u8g2_font_spleen8x16_mr);
+  char StationStr[5]; 
+  snprintf(StationStr, sizeof(StationStr), "%02d",station_nr); //Formatowanie informacji o stacji i baku do postaci 00 
+  //u8g2.setCursor(238, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
+  u8g2.setCursor(4, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
+  u8g2.print(StationStr);
+  
+  u8g2.setFont(spleen6x12PL);
   u8g2.setDrawColor(1);
   
-  u8g2.setCursor(230, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
-  u8g2.print(StationStr);
-
-
   // Parametry do obługi wyświetlania w 3 kolejnych wierszach z podzialem do pełnych wyrazów
   const int maxLineLength = 41;  // Maksymalna długość jednej linii w znakach
   String currentLine = "";  // Bieżąca linia
   int yPosition = 27;  // Początkowa pozycja Y
   
+  
+  
+  processText(stationString); // przetwarzamy polsie znaki
   
   //Liczymy długość napisu StationString i dodajemy separator do przewijanego tekstu
   stationStringScroll = stationString + "      ";
@@ -1924,6 +1936,84 @@ void displayRadio()
   // u8g2.nextPage();
   //u8g2.firstPage();
 }
+
+
+
+
+
+
+
+// Funkcja przetwarza tekst, zamieniając polskie znaki diakrytyczne
+void processText(String &text)
+{
+  for (int i = 0; i < text.length(); i++)
+  {
+    switch (text[i])
+    {
+      case (char)0xC2:
+        switch (text[i+1])
+        {
+          case (char)0xB3: text.setCharAt(i, 0xB3); break; // Zamiana "ł" na "l"
+          case (char)0x9C: text.setCharAt(i, 0x9C); break; // Zamiana "ś" na "s"
+          case (char)0x8C: text.setCharAt(i, 0x8C); break; // Zamiana "Ś" na "S"
+          case (char)0xB9: text.setCharAt(i, 0xB9); break; // Zamiana "ą" na "a"
+          case (char)0x9B: text.setCharAt(i, 0xEA); break; // Zamiana "ę" na "e"
+          case (char)0xBF: text.setCharAt(i, 0xBF); break; // Zamiana "ż" na "z"
+          case (char)0x9F: text.setCharAt(i, 0x9F); break; // Zamiana "ź" na "z"
+        }
+        text.remove(i+1, 1);
+        break;
+      case (char)0xC3:
+        switch (text[i+1])
+        {
+          case (char)0xB1: text.setCharAt(i, 0xF1); break; // Zamiana "ń" na "n"
+          case (char)0xB3: text.setCharAt(i, 0xF3); break; // Zamiana "ó" na "o"
+          case (char)0xBA: text.setCharAt(i, 0x9F); break; // Zamiana "ź" na "z"
+          case (char)0xBB: text.setCharAt(i, 0xAF); break; // Zamiana "Ż" na "Z"
+        }
+        text.remove(i+1, 1);
+        break;
+      case (char)0xC4:
+        switch (text[i+1])
+        {
+          case (char)0x85: text.setCharAt(i, 0xB9); break; // Zamiana "ą" na "a"
+          case (char)0x99: text.setCharAt(i, 0xEA); break; // Zamiana "ę" na "e"
+          case (char)0x87: text.setCharAt(i, 0xE6); break; // Zamiana "ć" na "c"
+          case (char)0x84: text.setCharAt(i, 0xA5); break; // Zamiana "Ą" na "A"
+          case (char)0x98: text.setCharAt(i, 0xCA); break; // Zamiana "Ę" na "E"
+          case (char)0x86: text.setCharAt(i, 0xC6); break; // Zamiana "Ć" na "C"
+        }
+        text.remove(i+1, 1);
+        break;
+      case (char)0xC5:
+        switch (text[i+1])
+        {
+          case (char)0x82: text.setCharAt(i, 0xB3); break; // Zamiana "ł" na "l"
+          case (char)0x84: text.setCharAt(i, 0xF1); break; // Zamiana "ń" na "n"
+          case (char)0x9B: text.setCharAt(i, 0x9C); break; // Zamiana "ś" na "s"
+          case (char)0xBB: text.setCharAt(i, 0xAF); break; // Zamiana "Ż" na "Z"
+          case (char)0xBC: text.setCharAt(i, 0xBF); break; // Zamiana "ż" na "z"
+          case (char)0x83: text.setCharAt(i, 0xD1); break; // Zamiana "Ń" na "N"
+          case (char)0x9A: text.setCharAt(i, 0x97); break; // Zamiana "Ś" na "S"
+          case (char)0x81: text.setCharAt(i, 0xA3); break; // Zamiana "Ł" na "L"
+          case (char)0xB9: text.setCharAt(i, 0xAC); break; // Zamiana "Ź" na "Z"
+        }
+        text.remove(i+1, 1);
+        break;
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
 
 // Obsługa wyświetlacza dla odtwarzanego pliku z karty SD
 void displayPlayer()
@@ -2646,6 +2736,8 @@ void setup()
   u8g2.drawXBMP(0,5, notes_width, notes_height, notes);  // obrazek - nutki
   u8g2.setFont(u8g2_font_fub14_tf);
   u8g2.drawStr(58, 17, "Internet Radio");
+  u8g2.setFont(spleen6x12PL);
+  u8g2.drawStr(231, 62, softwareRev);
   u8g2.sendBuffer();
     
   // Inicjalizacja karty SD
@@ -2755,8 +2847,8 @@ void setup()
     u8g2.drawStr(5, 39, "Open http://192.168.4.1");
     u8g2.sendBuffer();	
   }
-  wifiManager.setConfigPortalBlocking(true);  
-  displayRadio();
+  //wifiManager.setConfigPortalBlocking(true);  
+  //displayRadio();
 }
 
 void loop()
@@ -2969,6 +3061,7 @@ void loop()
     volumeSet = false;
     bankMenuEnable = false;
     currentOption = INTERNET_RADIO;
+    station_nr = stationFromBuffer;
     //action4Taken = false;
     displayRadio(); 
   }
@@ -3006,7 +3099,7 @@ void loop()
 
   if ((currentOption == INTERNET_RADIO) && (button1.isPressed()) && (menuEnable == true))
   {
-    menuEnable = false;    
+    menuEnable = false;
     changeStation();
   }
 
@@ -3014,6 +3107,7 @@ void loop()
   if ((currentOption == INTERNET_RADIO) && (button2.isReleased()) && (listedStations ==true))
   {
     listedStations = false; 
+    volumeSet = false;
     changeStation();
   }
 
@@ -3047,6 +3141,7 @@ void loop()
   {
     previous_bank_nr = bank_nr;
     bankMenuEnable = false;
+    volumeSet = false;
     u8g2.setFont(spleen6x12PL);
     u8g2.clearBuffer();
     u8g2.drawStr(10, 23, "Loading station from:");

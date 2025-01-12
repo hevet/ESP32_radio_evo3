@@ -1,0 +1,1 @@
+bdfconv -v -f 1 -b 1 -m "32-255" -n spleen6x12PLexp2 spleen6x12PLexp2.bdf -o spleen6x12PLexp2.c
