@@ -52,21 +52,21 @@
 #define MAX_FILES 100             // Maksymalna liczba plików lub katalogów w tablicy directories
 
 #define STATIONS_URL    "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank01.txt"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL1   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_02"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL2   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_03"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL3   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_04"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL4   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_05"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL5   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_06"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL6   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_07"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL7   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_08"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL8   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_09"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL9   "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_10"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL10  "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_11"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL11  "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_12"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL12  "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_13"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL13  "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_14"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL14  "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_15"      // Adres URL do pliku z listą stacji radiowych
-#define STATIONS_URL15  "https://raw.githubusercontent.com/sarunia/ESP32_stream/main/radio_v2_bank_16"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL1   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank02.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL2   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank03.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL3   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank04.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL4   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank05.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL5   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank06.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL6   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank07.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL7   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank08.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL8   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank09.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL9   "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank10.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL10  "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank11.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL11  "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank12.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL12  "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank13.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL13  "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank14.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL14  "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank15.txt"      // Adres URL do pliku z listą stacji radiowych
+#define STATIONS_URL15  "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank16.txt"      // Adres URL do pliku z listą stacji radiowych
 
 
 
@@ -122,6 +122,7 @@ bool listedStations = false;      // Flaga określająca czy na ekranie jest pok
 bool menuEnable = false;          // Flaga określająca czy na ekranie można wyświetlić menu
 bool bankMenuEnable = false;      // Flaga określająca czy na ekranie jest wyświetlone menu wyboru banku
 bool bitratePresent = false;      // Flaga określająca, czy na serial terminalu pojawiła się informacja o bitrate - jako ostatnia dana spływajaca z info
+bool bankNetworkUpdate = false;   // Flaga wyboru aktualizacji banku z sieci lub karty SD - True aktulizacja z NETu
 bool bank1NetworkUpdate = false;   // Flaga wyboru aktualizacji banku z sieci lub karty SD - True aktulizacja z NETu
 bool bank2NetworkUpdate = false;   // Flaga wyboru aktualizacji banku z sieci lub karty SD
 bool button_1 = false;            // Flaga określająca stan przycisku 1
@@ -137,7 +138,7 @@ bool ActionNeedUpdateTime = false;
 
 //unsigned long lastDebounceTime = 0;       // Czas ostatniego debouncingu
 unsigned long debounceDelay = 300;        // Czas trwania debouncingu w milisekundach
-unsigned long displayTimeout = 4000;      // Czas wyświetlania komunikatu na ekranie w milisekundach
+unsigned long displayTimeout = 4500;      // Czas wyświetlania komunikatu na ekranie w milisekundach
 unsigned long displayStartTime = 0;       // Czas rozpoczęcia wyświetlania komunikatu
 unsigned long seconds = 0;                // Licznik sekund timera
 unsigned int EEPROM_lenght = MAX_STATIONS * (STATION_NAME_LENGTH);
@@ -1213,7 +1214,7 @@ void fetchStationsFromServer()
   String fileName = String("/bank") + (bank_nr < 10 ? "0" : "") + String(bank_nr) + ".txt";
   
   // Sprawdzenie, czy plik istnieje
-  if (SD.exists(fileName))
+  if (SD.exists(fileName) && bankNetworkUpdate == false)
   {
     Serial.println("Plik banku " + fileName + " już istnieje.");
     u8g2.drawStr(136, 23, "SD card");
@@ -3063,6 +3064,7 @@ void loop()
     menuEnable = false;
     volumeSet = false;
     bankMenuEnable = false;
+    bankNetworkUpdate = false;
     currentOption = INTERNET_RADIO;
     station_nr = stationFromBuffer;
     //action4Taken = false;
@@ -3104,6 +3106,34 @@ void loop()
   {
     menuEnable = false;
     changeStation();
+  }
+
+  if ((currentOption == BANK_LIST) && (button1.isPressed()) && (bankMenuEnable == true))
+  {
+    bankMenuEnable = false;
+    previous_bank_nr = bank_nr;
+    volumeSet = false;
+    
+    u8g2.setFont(spleen6x12PL);
+    u8g2.clearBuffer();
+    u8g2.drawStr(10, 23, "Update station from:");
+		u8g2.sendBuffer();
+    bankNetworkUpdate = true;
+    currentSelection = 0;
+    firstVisibleLine = 0;
+    station_nr = 1;
+    currentOption = INTERNET_RADIO;
+        
+    fetchStationsFromServer();
+    changeStation();
+    bankNetworkUpdate = false;
+    u8g2.clearBuffer();
+    //u8g2.setFont(u8g2_font_spleen6x12_mr);
+    //u8g2.sendBuffer();
+
+
+
+
   }
 
   
