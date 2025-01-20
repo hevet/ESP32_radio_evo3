@@ -723,13 +723,13 @@ int bit_count = 0;          // Licznik bitów w odebranym kodzie
 
 const int LEAD_HIGH = 9000;         // 9 ms sygnał wysoki (początkowy)
 const int LEAD_LOW = 4600;          // 4,5 ms sygnał niski (początkowy)
-const int TOLERANCE = 150;          // Tolerancja (w mikrosekundach)
+const int TOLERANCE = 120;          // Tolerancja (w mikrosekundach)
 const int HIGH_THRESHOLD = 1690;    // Sygnał "1"
-const int LOW_THRESHOLD = 690;//560;      // Sygnał "0"
+const int LOW_THRESHOLD = 600;//560;      // Sygnał "0"
 
 
-volatile static bool data_start_detected = false;  // Flaga dla sygnału wstępnego
-volatile static unsigned long last_pulse_time = 0;
+bool data_start_detected = false;  // Flaga dla sygnału wstępnego
+//volatile static unsigned long last_pulse_time = 0;
 
 
 // Funkcja do obsługi przycisków enkoderów, odpowiedzialna za debouncing i wykrywanie długiego naciśnięcia
@@ -2923,6 +2923,7 @@ Serial.println(audio.inBufferFilled());
 
 
 // Funkcja obsługująca przerwanie (reakcja na zmianę stanu pinu)
+//void IRAM_ATTR pulseISR()
 void IRAM_ATTR pulseISR()
 {
   if (digitalRead(recv_pin) == HIGH)
@@ -2950,8 +2951,8 @@ void IRAM_ATTR pulseISR()
 
 void IRAM_ATTR analyzePulseFromIR()
 {
-  static bool data_start_detected = false;  // Flaga dla sygnału wstępnego
-  static unsigned long last_pulse_time = 0;
+  //static bool data_start_detected = false;  // Flaga dla sygnału wstępnego
+  //static unsigned long last_pulse_time = 0;
   
   if (pulse_ready_low) // spradzamy czy jest stan niski przez 9ms - start ramki
   {
@@ -3028,7 +3029,7 @@ void IRAM_ATTR analyzePulseFromIR()
         }
         else
         {
-          ir_code=0xF0F0F0F0;  // Ustawiamy F0F0F0F0 jako flagę błednego kodu
+          //ir_code=0xF0F0F0F0;  // Ustawiamy F0F0F0F0 jako flagę błednego kodu
           data_start_detected = false;
           //bit_count = 0;        
         }
@@ -3501,7 +3502,7 @@ void loop() {
 
   if (bit_count == 32) // sprawdzamy czy odczytalismy w przerwaniu pełne 32 bity kodu IR NEC
   {
-    if ((ir_code != 0) && (ir_code != 0xF0F0F0F0))
+    if (ir_code != 0) // && (ir_code != 0xF0F0F0F0)
     {
       detachInterrupt(recv_pin); // rozpinay przerwanie
       Serial.print("Kod NEC OK:");
