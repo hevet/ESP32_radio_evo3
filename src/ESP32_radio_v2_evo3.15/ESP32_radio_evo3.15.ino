@@ -174,7 +174,10 @@ int8_t toneMidValue = 0;               // Wartosc flitra dla tonow srednich
 int8_t toneHiValue = 0;                // Wartość filtra dla tonow wysokich
 uint8_t toneSelect = 1;                // Zmienna okreslająca, który filtr equalizera regulujemy
 int8_t toneValue = 0;                  // Zmienna regulująca tony w zależnosci od pozycji w menu Equalizera
+bool equalizerNeedSave = 0;
 
+
+uint8_t max_connection = 10;
 //uint8_t equalizerPresetSelect = 1;
 //int8_t toneLowValuePreset1 = 0;       // Wartosc filtra dla tonow niskich ustawienia numer 1
 //int8_t toneMidValuePreset1 = 0;       // Wartosc flitra dla tonow srednich ustawienia numer 1
@@ -1639,7 +1642,7 @@ void audio_showstreamtitle(const char *info) {
     ActionNeedUpdateTime = true;
     if ((volumeSet == false) && (bankMenuEnable == false) && (listedStations == false) && (rcInputDigitsMenuEnable == false) && (equalizerMenuEnable == false))
     {
-    screenRefresh = true;
+    //screenRefresh = true;
     displayRadio();
     }
   }
@@ -2892,7 +2895,8 @@ void updateTimer() {
       struct tm timeinfo;
 
       // Sprawdź, czy udało się pobrać czas z lokalnego zegara czasu rzeczywistego
-      if (!getLocalTime(&timeinfo)) {
+      if (!getLocalTime(&timeinfo, 5)) 
+      {
         // Wyświetl komunikat o niepowodzeniu w pobieraniu czasu
         Serial.println("Nie udało się uzyskać czasu");
         return;  // Zakończ funkcję, gdy nie udało się uzyskać czasu
@@ -3028,6 +3032,126 @@ void saveStationOnSD() {
     }
   }
 }
+
+
+
+void saveEqualizerOnSD() 
+{
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_fub14_tf); // cziocnka 14x11
+  u8g2.drawStr(1, 33, "Saving equalizer set..."); // 8 znakow  x 11 szer
+  u8g2.sendBuffer();
+  
+  
+  // Sprawdź, czy plik equalizer.txt istnieje
+
+  Serial.print("Filtr High: ");
+  Serial.println(toneHiValue);
+  
+  Serial.print("Filtr Mid: ");
+  Serial.println(toneMidValue);
+  
+  Serial.print("Filtr Low: ");
+  Serial.println(toneLowValue);
+  
+  
+  // Sprawdź, czy plik istnieje
+  if (SD.exists("/equalizer.txt")) 
+  {
+    Serial.println("Plik equalizer.txt już istnieje.");
+
+    // Otwórz plik do zapisu i nadpisz aktualną wartość flitrów equalizera
+    myFile = SD.open("/equalizer.txt", FILE_WRITE);
+    if (myFile) 
+	  {
+      myFile.println(toneHiValue);
+	    myFile.println(toneMidValue);
+	    myFile.println(toneLowValue);
+      myFile.close();
+      Serial.println("Aktualizacja equalizer.txt na karcie SD.");
+    } 
+	  else 
+	  {
+      Serial.println("Błąd podczas otwierania pliku equalizer.txt.");
+    }
+  } 
+  else 
+  {
+    Serial.println("Plik equalizer.txt nie istnieje. Tworzenie...");
+
+    // Utwórz plik i zapisz w nim aktualną wartość filtrów equalizera
+    myFile = SD.open("/equalizer.txt", FILE_WRITE);
+    if (myFile) 
+	  {
+      myFile.println(toneHiValue);
+	    myFile.println(toneMidValue);
+	    myFile.println(toneLowValue);
+      myFile.close();
+      Serial.println("Utworzono i zapisano equalizer.txt na karcie SD.");
+    } 
+	  else 
+	  {
+      Serial.println("Błąd podczas tworzenia pliku equalizer.txt.");
+    }
+  }
+}
+
+
+
+void readEqualizerFromSD() 
+{
+  // Sprawdź, czy karta SD jest dostępna
+  if (!SD.begin(47)) 
+  {
+    Serial.println("Nie można znaleźć karty SD. Ustawiam domyślne wartości.");
+    toneHiValue = 0;  // Domyślna wartość filtra gdy brak karty SD
+	  toneMidValue = 0; // Domyślna wartość filtra gdy brak karty SD
+	  toneLowValue = 0; // Domyślna wartość filtra gdy brak karty SD
+    return;
+  }
+
+  // Sprawdź, czy plik equalizer.txt istnieje
+  if (SD.exists("/equalizer.txt")) 
+  {
+    myFile = SD.open("/equalizer.txt");
+    if (myFile) 
+    {
+      toneHiValue = myFile.parseInt();
+	    toneMidValue = myFile.parseInt();
+	    toneLowValue = myFile.parseInt();
+      myFile.close();
+      
+      Serial.println("Wczytano equalizer.txt z karty SD: ");
+	  
+      Serial.print("Filtr High equalizera odczytany z SD: ");
+      Serial.println(toneHiValue);
+    
+      Serial.print("Filtr Mid equalizera odczytany z SD: ");
+      Serial.println(toneMidValue);
+    
+      Serial.print("Filtr Low equalizera odczytany z SD: ");
+      Serial.println(toneLowValue);
+	  
+      
+    } 
+	  else 
+	  {
+      Serial.println("Błąd podczas otwierania pliku equalizer.txt.");
+    }
+  } 
+  else 
+  {
+    Serial.println("Plik equalizer.txt nie istnieje.");
+    toneHiValue = 0;  // Domyślna wartość filtra gdy brak karty SD
+	  toneMidValue = 0; // Domyślna wartość filtra gdy brak karty SD
+	  toneLowValue = 0; // Domyślna wartość filtra gdy brak karty SD
+  }
+  audio.setTone(toneLowValue, toneMidValue, toneHiValue); // Ustawiamy filtry - zakres regulacji -40 + 6dB jako int8_t ze znakiem
+}
+
+
+
+
 // Funkcja do odczytu danych stacji radiowej z karty SD
 void readStationFromSD() {
   // Sprawdź, czy karta SD jest dostępna
@@ -3616,13 +3740,15 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
     u8g2.drawBox(xTone+56,yTone-9,154,10); // Rysujemy biały pasek pod regulacją danego tonu  
     u8g2.setDrawColor(0); 
     u8g2.drawLine(xTone+57,yTone-5,xTone+208,yTone-5);
-    if (toneHiValue >= 0) { u8g2.drawRBox((10 * toneHiValue) + xTone + 138,yTone-7,10,6,1);}
+    //u8g2.drawLine(xTone+57,yTone-4,xTone+208,yTone-4);
+    if (toneHiValue >= 0){ u8g2.drawRBox((10 * toneHiValue) + xTone + 138,yTone-7,10,6,1);}
     if (toneHiValue < 0) { u8g2.drawRBox((2 * toneHiValue) + xTone + 138,yTone-7,10,6,1);}
     u8g2.setDrawColor(1);
   }
   else 
   {
     u8g2.drawLine(xTone+57,yTone-5,xTone+208,yTone-5);
+    //u8g2.drawLine(xTone+57,yTone-4,xTone+208,yTone-4);
     if (toneHiValue >= 0){ u8g2.drawRBox((10 * toneHiValue) + xTone + 138,yTone-7,10,6,1);}
     if (toneHiValue < 0) { u8g2.drawRBox((2 * toneHiValue) + xTone + 138,yTone-7,10,6,1);}
     //u8g2.drawRBox((3 * toneHiValue) + xTone + 178,yTone-7,10,6,1);
@@ -3641,6 +3767,7 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
     u8g2.drawBox(xTone+56,yTone-9,154,10);
     u8g2.setDrawColor(0);
     u8g2.drawLine(xTone+57,yTone-5,xTone + 208,yTone-5);
+    //u8g2.drawLine(xTone+57,yTone-4,xTone + 208,yTone-4);
     if (toneMidValue >= 0) { u8g2.drawRBox((10 * toneMidValue) + xTone + 138,yTone-7,10,6,1);}
     if (toneMidValue < 0) { u8g2.drawRBox((2 * toneMidValue) + xTone + 138,yTone-7,10,6,1);}
     u8g2.setDrawColor(1);
@@ -3648,6 +3775,7 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
   else
   {
     u8g2.drawLine(xTone+57,yTone-5,xTone + 208,yTone-5);
+    //u8g2.drawLine(xTone+57,yTone-4,xTone + 208,yTone-4);
     if (toneMidValue >= 0) { u8g2.drawRBox((10 * toneMidValue) + xTone + 138,yTone-7,10,6,1);}
     if (toneMidValue < 0)  { u8g2.drawRBox((2 * toneMidValue) + xTone + 138,yTone-7,10,6,1);}
     //u8g2.drawRBox((3 * toneMidValue) + xTone + 138,yTone-7,10,6,1);
@@ -3666,14 +3794,16 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
   { 
     u8g2.drawBox(xTone+56,yTone-9,154,10);
     u8g2.setDrawColor(0);
-    u8g2.drawLine(xTone + 57,yTone-5,xTone + 208,yTone-5); 
+    u8g2.drawLine(xTone + 57,yTone-5,xTone + 208,yTone-5);
+   // u8g2.drawLine(xTone + 57,yTone-4,xTone + 208,yTone-4); 
     if ( toneLowValue >= 0 ) { u8g2.drawRBox((10 * toneLowValue) + xTone + 138,yTone-7,10,6,1);}
     if ( toneLowValue < 0 )  { u8g2.drawRBox((2 * toneLowValue) + xTone + 138,yTone-7,10,6,1);}
     u8g2.setDrawColor(1);
   }
   else
   {
-    u8g2.drawLine(xTone + 57,yTone-5,xTone + 208,yTone-5); 
+    u8g2.drawLine(xTone + 57,yTone-5,xTone + 208,yTone-5);
+    //u8g2.drawLine(xTone + 57,yTone-4,xTone + 208,yTone-4);  
     if ( toneLowValue >= 0 ) { u8g2.drawRBox((10 * toneLowValue) + xTone + 138,yTone-7,10,6,1);}
     if ( toneLowValue < 0 )  { u8g2.drawRBox((2 * toneLowValue) + xTone + 138,yTone-7,10,6,1);}
     //u8g2.drawRBox((3 * toneLowValue) + xTone + 138,yTone-7,10,6,1);
@@ -3818,7 +3948,7 @@ void setup() {
     u8g2.setFont(spleen6x12PL);
     u8g2.clearBuffer();
     u8g2.drawStr(10, 25, "Time synchronization...");
-
+    u8g2.sendBuffer();
 
     configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2 );
     //Serial.print("Syncrhonizacja zegara - status:");
@@ -3840,6 +3970,9 @@ void setup() {
     //u8g2.drawStr(10, 10, "Bank ");
     //u8g2.drawStr(40, 10, String(bank_nr).c_str());
     //u8g2.drawStr(10, 23, "Loading station from:");
+    
+    readEqualizerFromSD(); // ODczytujemy ustawienia filtrów equalizera z karty SD 
+
     uint8_t temp_station_nr = station_nr; // Chowamy na chwile odczytaną stacje z karty SD
     fetchStationsFromServer();
     station_nr = temp_station_nr ;  // Przywracamy numer po odczycie stacji
@@ -3857,6 +3990,7 @@ void setup() {
      firstVisibleLine = currentSelection - 3;
     }
 
+    
 
   } 
   else 
@@ -3889,13 +4023,13 @@ void loop()
   vTaskDelay(1);           // Krótkie opóźnienie, oddaje czas procesora innym zadaniom
 
   // Odczyt stanu klawiatura ADC pod GPIO 9
-/*
+
   if (millis() - keyboardLastSampleTime >= keyboardSampleDelay) // Sprawdzenie ADC - klawiatury 
   {
     keyboardLastSampleTime = millis();
     handleKeyboard();
   }
-*/
+
 
   CLK_state1 = digitalRead(CLK_PIN1);  // Odczytanie aktualnego stanu pinu CLK enkodera 1
   if (CLK_state1 != prev_CLK_state1 && CLK_state1 == HIGH) {
@@ -4318,10 +4452,7 @@ void loop()
         Serial.println(station_nr);
         scrollDown(); 
         displayStations();
-      }
-      
-
-
+      }    
       else if (ir_code == rcCmdOk)
       {
         if (bankMenuEnable == true)
@@ -4330,10 +4461,18 @@ void loop()
           fetchStationsFromServer();
           bankMenuEnable = false;
         }
-      changeStation(); 
-      displayRadio();
-      u8g2.sendBuffer();
-       
+        
+        if  (equalizerMenuEnable == true)
+        {
+          saveEqualizerOnSD();
+        }
+        if  (equalizerMenuEnable == false)
+        {
+          changeStation(); 
+          displayRadio();
+          u8g2.sendBuffer();
+        }
+        equalizerMenuEnable = false; 
       } 
       else if (ir_code == rcCmdKey0) {rcInputKey(0);}
       else if (ir_code == rcCmdKey1) {rcInputKey(1);}     
@@ -4407,6 +4546,12 @@ void loop()
           toneLowValue = 0;    
           equalizerDisplay();
         }
+        if ((bankMenuEnable == false) && (equalizerMenuEnable == false))
+         { 
+          readEqualizerFromSD();
+          equalizerDisplay();
+         }
+
       }
       else if (ir_code == rcCmdDirect) {vuMeterOn = !vuMeterOn; displayRadio();}     
       else if (ir_code == rcCmdBankMinus) {bankMenuDisplay();}
