@@ -173,8 +173,8 @@ int8_t toneLowValue = 0;               // Wartosc filtra dla tonow niskich
 int8_t toneMidValue = 0;               // Wartosc flitra dla tonow srednich
 int8_t toneHiValue = 0;                // Wartość filtra dla tonow wysokich
 uint8_t toneSelect = 1;                // Zmienna okreslająca, który filtr equalizera regulujemy
-int8_t toneValue = 0;                  // Zmienna regulująca tony w zależnosci od pozycji w menu Equalizera
-bool equalizerNeedSave = 0;
+//int8_t toneValue = 0;                  // Zmienna regulująca tony w zależnosci od pozycji w menu Equalizera
+//bool equalizerNeedSave = 0;
 
 
 uint8_t max_connection = 10;
@@ -222,7 +222,7 @@ bool screenRefresh = false;
 bool equalizerMenuEnable = false;       // Flaga wyswietlania menu Equalizera
 
 unsigned long debounceDelay = 300;    // Czas trwania debouncingu w milisekundach
-unsigned long displayTimeout = 4000;  // Czas wyświetlania komunikatu na ekranie w milisekundach
+unsigned long displayTimeout = 5000;  // Czas wyświetlania komunikatu na ekranie w milisekundach
 unsigned long displayStartTime = 0;   // Czas rozpoczęcia wyświetlania komunikatu
 unsigned long seconds = 0;            // Licznik sekund timera
 unsigned int PSRAM_lenght = MAX_STATIONS * (STATION_NAME_LENGTH) + MAX_STATIONS; // deklaracjia długości pamięci PSRAM
@@ -764,8 +764,8 @@ unsigned long ir_code = 0;  // Zmienna do przechowywania kodu IR
 int bit_count = 0;          // Licznik bitów w odebranym kodzie
 
 // Progi przełączeń dla sygnałów czasowych pilota IR
-const int LEAD_HIGH = 9000;         // 9 ms sygnał wysoki (początkowy)
-const int LEAD_LOW = 4550;          // 4,5 ms sygnał niski (początkowy)
+const int LEAD_HIGH = 9050;         // 9 ms sygnał wysoki (początkowy)
+const int LEAD_LOW = 4500;          // 4,5 ms sygnał niski (początkowy)
 const int TOLERANCE = 120;          // Tolerancja (w mikrosekundach)
 const int HIGH_THRESHOLD = 1690;    // Sygnał "1"
 const int LOW_THRESHOLD = 600;//560;// Sygnał "0"
@@ -1230,7 +1230,7 @@ void changeStation() {
     Serial.println(stationUrl);
     
     u8g2.setFont(spleen6x12PL);  // wypisujemy jaki stream jakie stacji jest ładowany
-    u8g2.drawStr(34, 55, String(stationName.substring(0, 23)).c_str());
+    u8g2.drawStr(34, 55, String(stationName.substring(0, 22)).c_str());
     u8g2.sendBuffer();
     
     // Połącz z daną stacją
@@ -1963,6 +1963,99 @@ void playFromSelectedFolder() {
 }
 
 
+void readVolumeFromSD() 
+{
+  // Sprawdź, czy karta SD jest dostępna
+  if (!SD.begin(47)) 
+  {
+    Serial.println("Nie można znaleźć karty SD. Ustawiam domyślną wartość.");
+    Serial.print("Wartość Volume domyślna:");
+    Serial.println(volumeValue);
+    return;
+  }
+  // Sprawdź, czy plik volume.txt istnieje
+  if (SD.exists("/volume.txt")) 
+  {
+    myFile = SD.open("/volume.txt");
+    if (myFile) 
+    {
+      volumeValue = myFile.parseInt();
+	  myFile.close();
+      
+      Serial.println("Wczytano volume.txt z karty SD");
+      Serial.print("Wartość Volume odczytany z SD: ");
+      Serial.println(volumeValue);    
+    } 
+	  else 
+	  {
+      Serial.println("Błąd podczas otwierania pliku volume.txt");
+    }
+  } 
+  else 
+  {
+    Serial.println("Plik volume.txt nie istnieje.");
+	Serial.print("Wartość Volume domyślna:");
+    Serial.println(volumeValue);    
+  }
+  audio.setVolume(volumeValue);  // zakres 0...21
+}
+
+
+
+
+
+void saveVolumeOnSD() 
+{
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_fub14_tf); // cziocnka 14x11
+  u8g2.drawStr(1, 33, "Saving volume settings"); // 8 znakow  x 11 szer
+  u8g2.sendBuffer();
+  
+  
+  
+  // Sprawdź, czy plik volume.txt istnieje
+  Serial.print("Volume");
+  Serial.println(volumeValue); 
+  
+  // Sprawdź, czy plik istnieje
+  if (SD.exists("/volume.txt")) 
+  {
+    Serial.println("Plik volume.txt już istnieje.");
+
+    // Otwórz plik do zapisu i nadpisz aktualną wartość flitrów equalizera
+    myFile = SD.open("/volume.txt", FILE_WRITE);
+    if (myFile) 
+	{
+      myFile.println(volumeValue);
+	  myFile.close();
+      Serial.println("Aktualizacja volume.txt na karcie SD.");
+    } 
+	else 
+	{
+      Serial.println("Błąd podczas otwierania pliku volume.txt.");
+    }
+  } 
+  else 
+  {
+    Serial.println("Plik volume.txt nie istnieje. Tworzenie...");
+
+    // Utwórz plik i zapisz w nim aktualną wartość głośności
+    myFile = SD.open("/volume.txt", FILE_WRITE);
+    if (myFile) 
+	{
+      myFile.println(volumeValue);
+      myFile.close();
+      Serial.println("Utworzono i zapisano volume.txt na karcie SD.");
+    } 
+	else 
+	{
+      Serial.println("Błąd podczas tworzenia pliku volume.txt.");
+    }
+  }
+}
+
+
+
 void drawSignalPower(uint8_t xpwr, uint8_t ypwr, bool print)
 {
   // Wartosci na podstawie ->  https://www.intuitibits.com/2016/03/23/dbm-to-percent-conversion/
@@ -2026,10 +2119,9 @@ void displayRadio() {
   {
     //Serial.println("debug---displayRadio inside void");
     u8g2.clearBuffer();
-
     u8g2.setFont(u8g2_font_fub14_tf);
     stationName = stationName.substring(0, 22);
-    u8g2.drawStr(27, 16, stationName.c_str());
+    u8g2.drawStr(26, 16, stationName.c_str());
     //u8g2.drawStr(0, 16, stationName.c_str());
 
     // Funkcja wyswietlania numeru Banku na dole ekranu
@@ -2409,7 +2501,7 @@ void webServer() {
             // Web Page Heading
             client.println("<body><h1>ESP32 Internet Radio</h1>");
             client.println("<p></p>");
-            client.println("<p>You are listening: <b>" + String(stationName.substring(0, 23)) + "</b> - " + stationString + "</p>");
+            client.println("<p>You are listening: <b>" + String(stationName.substring(0, 22)) + "</b> - " + stationString + "</p>");
             client.println("<p>Station:<b>" + String(station_nr) + "</b>, bank: <b>" + String(bank_nr) + "</b></p>");
             client.println("<p>Volume: <b>" + String(volumeValue) + "</b></p>");
             client.println("<p></p>");
@@ -3040,7 +3132,7 @@ void saveEqualizerOnSD()
 {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_fub14_tf); // cziocnka 14x11
-  u8g2.drawStr(1, 33, "Saving equalizer set..."); // 8 znakow  x 11 szer
+  u8g2.drawStr(1, 33, "Saving equalizer settings"); // 8 znakow  x 11 szer
   u8g2.sendBuffer();
   
   
@@ -3512,7 +3604,8 @@ void volumeDisplay()
   audio.setVolume(volumeValue);  // zakres 0...21
   String volumeValueStr = String(volumeValue);  // Zamiana liczby VOLUME na ciąg znaków
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_fub14_tf);
+  u8g2.setFont(DotMatrix13pl);
+  //u8g2.setFont(u8g2_font_fub14_tf);
   u8g2.drawStr(65, 33, "VOLUME");
   u8g2.drawStr(163, 33, volumeValueStr.c_str());
   u8g2.drawRFrame(21, 42, 214, 14, 3);             // Rysujmey ramke dla progress bara głosnosci
@@ -3522,6 +3615,7 @@ void volumeDisplay()
 
 void volumeUp()
 {
+  volumeSet = true;
   timeDisplay = false;
   displayActive = true;
   volumeMute = false;
@@ -3548,6 +3642,7 @@ void volumeUp()
 
 void volumeDown()
 {
+  volumeSet = true;
   timeDisplay = false;
   displayActive = true;
   volumeMute = false;
@@ -3975,6 +4070,7 @@ void setup() {
     //u8g2.drawStr(10, 23, "Loading station from:");
     
     readEqualizerFromSD(); // ODczytujemy ustawienia filtrów equalizera z karty SD 
+    readVolumeFromSD(); // odczytujemy nastawę głośnosci staertowej
 
     uint8_t temp_station_nr = station_nr; // Chowamy na chwile odczytaną stacje z karty SD
     fetchStationsFromServer();
@@ -4026,13 +4122,13 @@ void loop()
   vTaskDelay(1);           // Krótkie opóźnienie, oddaje czas procesora innym zadaniom
 
   // Odczyt stanu klawiatura ADC pod GPIO 9
-
+/*
   if (millis() - keyboardLastSampleTime >= keyboardSampleDelay) // Sprawdzenie ADC - klawiatury 
   {
     keyboardLastSampleTime = millis();
     handleKeyboard();
   }
-
+*/
 
   CLK_state1 = digitalRead(CLK_PIN1);  // Odczytanie aktualnego stanu pinu CLK enkodera 1
   if (CLK_state1 != prev_CLK_state1 && CLK_state1 == HIGH) {
@@ -4468,14 +4564,21 @@ void loop()
         if  (equalizerMenuEnable == true)
         {
           saveEqualizerOnSD();
+          //equalizerMenuEnable = false;
         }
-        if  (equalizerMenuEnable == false)
+        if (volumeSet == true)
+        {
+          saveVolumeOnSD();  
+          
+        }
+        if  ((equalizerMenuEnable == false) && (volumeSet == false)) // jesli nie zapisywalisci equlizer i glonosci to wywolujemy ponizsze funkcje
         {
           changeStation(); 
           displayRadio();
           u8g2.sendBuffer();
         }
-        equalizerMenuEnable = false; 
+        equalizerMenuEnable = false; // Kasujemy flage ustawiania equalizera
+        volumeSet = false; // Kasujemy flage ustawiania głośnosci
       } 
       else if (ir_code == rcCmdKey0) {rcInputKey(0);}
       else if (ir_code == rcCmdKey1) {rcInputKey(1);}     
@@ -4549,9 +4652,10 @@ void loop()
           toneLowValue = 0;    
           equalizerDisplay();
         }
-        if ((bankMenuEnable == false) && (equalizerMenuEnable == false))
+        if ((bankMenuEnable == false) && (equalizerMenuEnable == false) && (volumeSet == false))
          { 
           readEqualizerFromSD();
+          readVolumeFromSD();
           equalizerDisplay();
          }
 
