@@ -3604,8 +3604,8 @@ void volumeDisplay()
   audio.setVolume(volumeValue);  // zakres 0...21
   String volumeValueStr = String(volumeValue);  // Zamiana liczby VOLUME na ciąg znaków
   u8g2.clearBuffer();
-  u8g2.setFont(DotMatrix13pl);
-  //u8g2.setFont(u8g2_font_fub14_tf);
+  //u8g2.setFont(DotMatrix13pl);
+  u8g2.setFont(u8g2_font_fub14_tf);
   u8g2.drawStr(65, 33, "VOLUME");
   u8g2.drawStr(163, 33, volumeValueStr.c_str());
   u8g2.drawRFrame(21, 42, 214, 14, 3);             // Rysujmey ramke dla progress bara głosnosci
