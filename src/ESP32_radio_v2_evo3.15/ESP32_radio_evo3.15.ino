@@ -161,6 +161,7 @@ int folderIndex = 0;                   // Numer aktualnie wybranego folderu podc
 int folderFromBuffer = 0;              // Numer aktualnie wybranego folderu do przywrócenia na ekran po bezczynności
 int totalFilesInFolder = 0;            // Zmienna przechowująca łączną liczbę plików w folderze
 int volumeValue = 10;                  // Wartość głośności, domyślnie ustawiona na 10
+int volumeBufferValue = 0;             // Wartość głośności, domyślnie ustawiona na 10
 int cycle = 0;                         // Numer cyklu do danych pogodowych wyświetlanych w trzech rzutach co 10 sekund
 int maxVisibleLines = 4;               // Maksymalna liczba widocznych linii na ekranie OLED
 int bitrateStringInt = 0;              // Deklaracja zmiennej do konwersji Bitrate string na wartosc Int aby podzelic bitrate przez 1000
@@ -766,7 +767,7 @@ int bit_count = 0;          // Licznik bitów w odebranym kodzie
 // Progi przełączeń dla sygnałów czasowych pilota IR
 const int LEAD_HIGH = 9050;         // 9 ms sygnał wysoki (początkowy)
 const int LEAD_LOW = 4500;          // 4,5 ms sygnał niski (początkowy)
-const int TOLERANCE = 120;          // Tolerancja (w mikrosekundach)
+const int TOLERANCE = 130;          // Tolerancja (w mikrosekundach)
 const int HIGH_THRESHOLD = 1690;    // Sygnał "1"
 const int LOW_THRESHOLD = 600;//560;// Sygnał "0"
 
@@ -1230,7 +1231,7 @@ void changeStation() {
     Serial.println(stationUrl);
     
     u8g2.setFont(spleen6x12PL);  // wypisujemy jaki stream jakie stacji jest ładowany
-    u8g2.drawStr(34, 55, String(stationName.substring(0, 22)).c_str());
+    u8g2.drawStr(34, 55, String(stationName.substring(0, 23)).c_str());
     u8g2.sendBuffer();
     
     // Połącz z daną stacją
@@ -2006,15 +2007,16 @@ void readVolumeFromSD()
 
 void saveVolumeOnSD() 
 {
+ /*
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_fub14_tf); // cziocnka 14x11
   u8g2.drawStr(1, 33, "Saving volume settings"); // 8 znakow  x 11 szer
   u8g2.sendBuffer();
-  
-  
+ */ 
+  volumeBufferValue = volumeValue;
   
   // Sprawdź, czy plik volume.txt istnieje
-  Serial.print("Volume");
+  Serial.print("Volume:");
   Serial.println(volumeValue); 
   
   // Sprawdź, czy plik istnieje
@@ -2120,8 +2122,8 @@ void displayRadio() {
     //Serial.println("debug---displayRadio inside void");
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_fub14_tf);
-    stationName = stationName.substring(0, 22);
-    u8g2.drawStr(26, 16, stationName.c_str());
+    stationName = stationName.substring(0, 23);
+    u8g2.drawStr(24, 16, stationName.c_str());
     //u8g2.drawStr(0, 16, stationName.c_str());
 
     // Funkcja wyswietlania numeru Banku na dole ekranu
@@ -2137,7 +2139,9 @@ void displayRadio() {
     u8g2.drawBox(154, 54, 1, 12);  // dorysowujemy 1px pasek przed "Bank"
     
     //u8g2.drawRBox(225,1,30,16,4); // Rbox pod numerem stacji
-    u8g2.drawRBox(1, 1, 21, 16, 4);  // Rbox pod numerem stacji
+   u8g2.drawRBox(1, 1, 21, 16, 4);  // Rbox pod numerem stacji
+   // u8g2.drawRBox(0, 0, 20, 15, 4);  // Rbox pod numerem stacji
+
 
     u8g2.setDrawColor(0);
     u8g2.setFont(u8g2_font_spleen8x16_mr);
@@ -2145,6 +2149,7 @@ void displayRadio() {
     snprintf(StationStr, sizeof(StationStr), "%02d", station_nr);  //Formatowanie informacji o stacji i banku do postaci 00
     //u8g2.setCursor(228, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
     u8g2.setCursor(4, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
+    //u8g2.setCursor(3, 13);  // Pozycja numeru stacji na gorze ekranu S0xx
     u8g2.print(StationStr);
 
     u8g2.setFont(spleen6x12PL);
@@ -2177,7 +2182,7 @@ void displayRadio() {
     
     char StationStr[3];
     snprintf(StationStr, sizeof(StationStr), "%02d", station_nr); 
-    stationName = stationName.substring(0, 22);
+    stationName = stationName.substring(0, 26);
     int StationNameEnd = stationName.indexOf("  ");  
     stationName = stationName.substring(0, StationNameEnd);
     
@@ -2958,19 +2963,19 @@ void updateTimer() {
   {
     if ((audio.isRunning() == true) && (displayMode == 0)) {
       if (mp3 == true) {
-        u8g2.drawStr(130, 63, "MP3");
+        u8g2.drawStr(133, 63, "MP3");
         //Serial.println("Gram MP3");
       }
       if (flac == true) {
-        u8g2.drawStr(130, 63, "FLC");
+        u8g2.drawStr(133, 63, "FLC");
         //Serial.println("Gram FLAC");
       }
       if (aac == true) {
-        u8g2.drawStr(130, 63, "AAC");
+        u8g2.drawStr(133, 63, "AAC");
         //Serial.println("Gram AAC");
       }
       if (vorbis == true) {
-        u8g2.drawStr(130, 63, "VBR");
+        u8g2.drawStr(133, 63, "VBR");
         //Serial.println("Gram AAC");
       }
     }
@@ -3340,7 +3345,7 @@ void displayRadioScroller() {
       u8g2.setFont(spleen6x12PL);
       u8g2.setDrawColor(1);
       do {
-        u8g2.drawStr(xPositionStationString, 34, stationStringScroll.c_str());
+        u8g2.drawStr(xPositionStationString, 33, stationStringScroll.c_str());
         xPositionStationString = xPositionStationString + stationStringWidth;
       } while (xPositionStationString < 256);
       
@@ -3353,7 +3358,7 @@ void displayRadioScroller() {
       xPositionStationString = 0;
       u8g2.setDrawColor(1);
       u8g2.setFont(spleen6x12PL);
-      u8g2.drawStr(xPositionStationString, 34, stationString.c_str());
+      u8g2.drawStr(xPositionStationString, 33, stationString.c_str());
       
     }
   } 
@@ -3594,6 +3599,7 @@ void bankMenuDisplay()
 
 void volumeDisplay()
 {
+  //volumeBufferValue = volumeValue;
   displayStartTime = millis();
   timeDisplay = false;
   displayActive = true;
@@ -3615,6 +3621,7 @@ void volumeDisplay()
 
 void volumeUp()
 {
+  //volumeBufferValue = volumeValue;
   volumeSet = true;
   timeDisplay = false;
   displayActive = true;
@@ -3642,6 +3649,7 @@ void volumeUp()
 
 void volumeDown()
 {
+  //volumeBufferValue = volumeValue;
   volumeSet = true;
   timeDisplay = false;
   displayActive = true;
@@ -3792,7 +3800,42 @@ void IRAM_ATTR pulseISR()
   }
 //runTime2 = esp_timer_get_time();
 }
+void readRcStoredCodes()
+{
+  displayStartTime = millis();  // Uaktulniamy czas dla funkcji auto-pwrotu z menu
+  displayActive = true;         // Wyswietlacz aktywny
 
+  equalizerMenuEnable = false;   // Ustawiamy flage menu equalizera
+  timeDisplay = false;          // Wyłaczamy zegar
+  
+  
+  u8g2.clearBuffer();
+  u8g2.setFont(spleen6x12PL);
+
+/* Strona  1 z 2 */
+  u8g2.setCursor(0,13); u8g2.print("Vol +:" + String(rcCmdVolumeUp, HEX) +   " Down:" + String(rcCmdArrowDown, HEX) + " Bank-:" + String(rcCmdBankMinus, HEX) + " Equ:" + String(rcCmdAud, HEX));
+  u8g2.setCursor(0,26); u8g2.print("Vol -:" + String(rcCmdVolumeDown, HEX) + " Back:" + String(rcCmdBack, HEX) +      " Bank+:" + String(rcCmdBankPlus, HEX));
+  u8g2.setCursor(0,39); u8g2.print("Left: " + String(rcCmdArrowRight, HEX) + " Ok:  " + String(rcCmdOk, HEX) +        " Red:  " + String(rcCmdRed, HEX));
+  u8g2.setCursor(0,52); u8g2.print("Right:" + String(rcCmdArrowLeft, HEX) +  " Src: " + String(rcCmdSrc, HEX) +       " Green:" + String(rcCmdGreen, HEX));
+  u8g2.setCursor(0,63); u8g2.print("Up:   " + String(rcCmdArrowUp, HEX) +    " Mute:" + String(rcCmdMute, HEX) +      " Dim:  " + String(rcCmdDirect, HEX));
+  
+ 
+ /* Strona  2 z 2 */
+  /*
+  u8g2.setCursor(0,12); u8g2.print("Key 0:" + String(rcCmdKey0, HEX) + "  Key 6:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,24); u8g2.print("Key 1:" + String(rcCmdKey1, HEX) + "  Key 7:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,36); u8g2.print("Key 2:" + String(rcCmdKey2, HEX) + "  Key 8:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,48); u8g2.print("Key 3:" + String(rcCmdKey3, HEX) + "  Key 9:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,60); u8g2.print("Key 4:" + String(rcCmdKey0, HEX) + "  Key 0:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,60); u8g2.print("Key 5:" + String(rcCmdKey0, HEX) + "  Key 0:" + String(rcCmdKey0, HEX));
+  
+ */
+
+// rcCmdKey0 
+//u8g2.drawStr(0, 13, "rcCmdVolumeUp:");
+//u8g2.drawStr(0, 13, rcCmdVolumeUp);
+u8g2.sendBuffer(); 
+}
 
 void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
 {
@@ -3930,7 +3973,7 @@ void setup() {
   }
 
   //AudioBuffer(16384);
-  
+  audioBuffer.changeMaxBlockSize(16384);
   
 
   // Ustaw pin CS dla karty SD jako wyjście i ustaw go na wysoki stan
@@ -4005,7 +4048,7 @@ void setup() {
   //u8g2.setFont(DotMatrix13pl);
   //u8g2.setFont(u8g2_font_fub14_tf);
   
-  audioBuffer.changeMaxBlockSize(16384);
+ // audioBuffer.changeMaxBlockSize(16384);
 
   //u8g2.drawStr(5, 32, "Internet Radio");
   //u8g2.sendBuffer();
@@ -4102,10 +4145,8 @@ void setup() {
     u8g2.drawStr(5, 39, "Open http://192.168.4.1");
     u8g2.sendBuffer();
   }
-  //wifiManager.setConfigPortalBlocking(true);
-  //displayRadio();
   
-  //int kbd = xTaskCreatePinnedToCore(handleKeyboard, "handle_Keyboard", 10000, NULL, 1, NULL, 1);
+  //int kbd = xTaskCreatePinnedToCore(handleKeyboard, "handle_Keyboard", 2000, NULL, 1, NULL, 1);
   //if(kbd) {Serial.println("Task kbd created...");} 
   //else {Serial.printf("Couldn't create task %i", kbd);}
 }
@@ -4119,61 +4160,64 @@ void loop()
   button2.loop();         // Wykonuje pętlę dla obiektu button2 (sprawdza stan przycisku z enkodera 2)
   handleButtons();        // Wywołuje funkcję obsługującą przyciski i wykonuje odpowiednie akcje (np. zmiana opcji, wejście do menu)
   webServer();            // Uruchamiamy Web serwer
-  vTaskDelay(1);           // Krótkie opóźnienie, oddaje czas procesora innym zadaniom
+  vTaskDelay(3);           // Krótkie opóźnienie, oddaje czas procesora innym zadaniom
 
-  // Odczyt stanu klawiatura ADC pod GPIO 9
-/*
+  /* -------------- KLAWIATURA --------------*/
+  /* Odczyt stanu klawiatura ADC pod GPIO 9 */
+  /*
   if (millis() - keyboardLastSampleTime >= keyboardSampleDelay) // Sprawdzenie ADC - klawiatury 
   {
     keyboardLastSampleTime = millis();
     handleKeyboard();
   }
-*/
+  */
 
   CLK_state1 = digitalRead(CLK_PIN1);  // Odczytanie aktualnego stanu pinu CLK enkodera 1
-  if (CLK_state1 != prev_CLK_state1 && CLK_state1 == HIGH) {
+  if (CLK_state1 != prev_CLK_state1 && CLK_state1 == HIGH) 
+  {
     timeDisplay = false;
     displayActive = true;
     displayStartTime = millis();
+   
     if (menuEnable == true)  // Przewijanie menu prawym enkoderem
     {
       int DT_state1 = digitalRead(DT_PIN1);
-      switch (currentOption) {
+      switch (currentOption) 
+      {
         case PLAY_FILES:
-          if (DT_state1 == HIGH) {
+          if (DT_state1 == HIGH) 
+          {
             currentOption = PLAY_FILES;
-          } else {
+          } 
+          else 
+          {
             currentOption = INTERNET_RADIO;
           }
           break;
 
         case INTERNET_RADIO:
-          if (DT_state1 == HIGH) {
+          if (DT_state1 == HIGH) 
+          {
             currentOption = PLAY_FILES;
-          } else {
+          } 
+          else 
+          {
             currentOption = INTERNET_RADIO;
           }
           break;
-
-
       }
       displayMenu();
     }
-
     else  // Regulacja głośności
     {
-      if (digitalRead(DT_PIN1) == HIGH) {
-        volumeValue--;
-        if (volumeValue < 1) {
-          volumeValue = 1;
-        }
-      } else {
-        volumeValue++;
-        if (volumeValue > 21) {
-          volumeValue = 21;
-        }
+      if (digitalRead(DT_PIN1) == HIGH) 
+      {
+        volumeDown();
+      } 
+      else 
+      {
+        volumeUp();
       }
-      volumeDisplay();
     }
   }
   prev_CLK_state1 = CLK_state1;
@@ -4211,23 +4255,11 @@ void loop()
     {
       if ((currentOption == INTERNET_RADIO) && (bankMenuEnable == false)) 
       {
-        if (digitalRead(DT_PIN2) == HIGH) 
-        {
-          volumeValue--;
-          if (volumeValue < 1) 
-          {
-            volumeValue = 1;
-          }
-        } 
+        if (digitalRead(DT_PIN2) == HIGH) // pokrecenie enkoderem 2
+        {volumeDown();} 
         else 
-        {
-          volumeValue++;
-          if (volumeValue > 21) 
-          {
-            volumeValue = 21;
-          }
-        }
-        volumeDisplay();
+        {volumeUp();}
+        //volumeDisplay();
       }
     }
 
@@ -4277,6 +4309,13 @@ void loop()
       changeStation(); 
     }
     */
+    if (volumeBufferValue != volumeValue)
+    {
+      saveVolumeOnSD();
+      volumeBufferValue = volumeValue;
+    }
+    //Serial.print("volumeBufferValue:");
+    //Serial.println(volumeBufferValue);
 
     if ((rcInputDigitsMenuEnable == true) && (station_nr != stationFromBuffer))    
     {
@@ -4352,26 +4391,7 @@ void loop()
     timeDisplay = false;
     volumeSet = true;
     displayActive = true;
-    volumeDisplay();
-
-    /*
-    Serial.println("debug--Wcisnieto enkoder 1 - Volume");
-
-    Serial.print("Wartość głośności: ");
-    Serial.println(volumeValue);
-            
-    audio.setVolume(volumeValue);  // zakres 0...21
-
-    // Używamy funkcji String() do konwersji liczby na tekst
-    String volumeValueStr = String(volumeValue);  // Zamiana liczby VOLUME na ciąg znaków
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_fub14_tf);
-    u8g2.drawStr(65, 33, "VOLUME");
-    u8g2.drawStr(163, 33, volumeValueStr.c_str());
-    u8g2.drawRFrame(21, 42, 214, 14, 3);             // Rysujmey ramke dla progress bara głosnosci
-    u8g2.drawRBox(23, 44, volumeValue * 10, 10, 2);  // Progress bar głosnosci
-    u8g2.sendBuffer();
-    */
+    volumeDisplay();  // Po nacisnieciu enkodera2 wyswietlamy menu głośnosci
   }
 
 
@@ -4625,7 +4645,7 @@ void loop()
         }
         displayRadio();
       }
-      else if (ir_code == rcCmdGreen) {vuMeterMode = !vuMeterMode;} // Zmiana trybu VU meter z przerywanych kresek na ciągłe paski
+      else if (ir_code == rcCmdGreen) {readRcStoredCodes();}//vuMeterMode = !vuMeterMode;} // Zmiana trybu VU meter z przerywanych kresek na ciągłe paski
       else if (ir_code == rcCmdDirect) {
         displayBrightness =  displayBrightness + 15;
         if (displayBrightness > 15){displayBrightness = 0;}
@@ -4661,8 +4681,32 @@ void loop()
 
       }
       else if (ir_code == rcCmdDirect) {vuMeterOn = !vuMeterOn; displayRadio();}     
-      else if (ir_code == rcCmdBankMinus) {bankMenuDisplay();}
-      else if (ir_code == rcCmdBankPlus) {bankMenuDisplay();}
+      else if (ir_code == rcCmdBankMinus) 
+      {
+      if (bankMenuEnable == true)
+        {
+          bank_nr--;
+          if (bank_nr < 1) 
+          {
+            bank_nr = 16;
+          }
+        }  
+        
+        bankMenuDisplay();
+      }
+      else if (ir_code == rcCmdBankPlus) 
+      {
+        if (bankMenuEnable == true)
+        {
+          bank_nr++;
+          if (bank_nr > 16) 
+          {
+            bank_nr = 1;
+          }
+        }       
+        bankMenuDisplay();
+      }
+     
       else if (ir_code == rcCmdAud)
       {//debugAudioBuffor = !debugAudioBuffor;
         //toneSelect = 1;
@@ -4733,7 +4777,7 @@ void loop()
     
     displayRadioScroller();  // wykonujemy przewijanie tekstu station stringi przygotowujemy bufor ekranu
     
-    if (volumeMute == true)   // Obsługa wyciszenia dzwięku, wprowadzamy napis MUTE na ekran
+    if ((volumeMute == true) || (volumeValue == 0))   // Obsługa wyciszenia dzwięku, wprowadzamy napis MUTE na ekran
     {   
       u8g2.setDrawColor(0);
       if (displayMode == 0) {u8g2.drawStr(0,48, "> MUTED <");}
