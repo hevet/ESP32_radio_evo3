@@ -11,19 +11,20 @@
 #include <U8g2lib.h>      // Biblioteka do obsługi wyświetlaczy
 #include <ezButton.h>     // Biblioteka do obsługi enkodera z przyciskiem
 #include <HTTPClient.h>   // Biblioteka do wykonywania żądań HTTP, umożliwia komunikację z serwerami przez protokół HTTP
-//#include <EEPROM.h>       // Biblioteka do obsługi pamięci EEPROM, przechowywanie danych w pamięci nieulotnej
 #include <Ticker.h>       // Mechanizm tickera do odświeżania timera 1s, pomocny do cyklicznych akcji w pętli głównej
 #include <WiFiManager.h>  // Biblioteka do zarządzania konfiguracją sieci WiFi, opis jak ustawić połączenie WiFi przy pierwszym uruchomieniu jest opisany tu: https://github.com/tzapu/WiFiManager
 #include <WiFi.h>
 //#include <ArduinoJson.h>          // Biblioteka do parsowania i tworzenia danych w formacie JSON, użyteczna do pracy z API
 #include <Time.h>  // Biblioteka do obsługi funkcji związanych z czasem, np. odczytu daty i godziny
 
+
 // Only for i2c Keyboard 
 // #include "Wire.h"
 // #include "I2CKeyPad8x8.h"
 
 
-#define softwareRev "v3.15"  // wersja oprogramowania
+#define softwareRev "v3.15"    // Wersja oprogramowania radia
+#define hostname "ESP32-Radio" // Definicja nazwy hosta widoczna na zewnątrz
 
 // definicja pinow czytnika karty SD
 #define SD_CS 47    // Pin CS (Chip Select) dla karty SD wybierany jako interfejs SPI
@@ -179,10 +180,7 @@ uint8_t toneSelect = 1;                // Zmienna okreslająca, który filtr equ
 
 
 uint8_t max_connection = 10;
-//uint8_t equalizerPresetSelect = 1;
-//int8_t toneLowValuePreset1 = 0;       // Wartosc filtra dla tonow niskich ustawienia numer 1
-//int8_t toneMidValuePreset1 = 0;       // Wartosc flitra dla tonow srednich ustawienia numer 1
-//int8_t toneHiValuePreset1 = 0;        // Wartość filtra dla tonow wysokich ustawienia numer 1
+uint8_t rcPage = 0;
 
 uint8_t rcInputDigit1 = 0xFF;      // Pierwsza cyfra w przy wprowadzaniu numeru stacji z pilota
 uint8_t rcInputDigit2 = 0xFF;      // Druga cyfra w przy wprowadzaniu numeru stacji z pilota
@@ -193,6 +191,7 @@ uint8_t displayBrightness = 15;  // Janość wyswietlacza;
 //const int maxVisibleLines = 5;  // Maksymalna liczba widocznych linii na ekranie OLED
 bool encoderButton1 = false;      // Flaga określająca, czy przycisk enkodera 1 został wciśnięty
 bool encoderButton2 = false;      // Flaga określająca, czy przycisk enkodera 2 został wciśnięty
+bool encoderFunctionOrder = true;// Flaga okreslająca kolejność funkcji enkodera 2
 bool fileEnd = false;             // Flaga sygnalizująca koniec odtwarzania pliku audio
 bool displayActive = false;       // Flaga określająca, czy wyświetlacz jest aktywny
 bool isPlaying = false;           // Flaga określająca, czy obecnie trwa odtwarzanie
@@ -222,12 +221,15 @@ bool screenRefresh = false;
 
 bool equalizerMenuEnable = false;       // Flaga wyswietlania menu Equalizera
 
+//uint8_t displayType = 1;
+
 unsigned long debounceDelay = 300;    // Czas trwania debouncingu w milisekundach
 unsigned long displayTimeout = 5000;  // Czas wyświetlania komunikatu na ekranie w milisekundach
 unsigned long displayStartTime = 0;   // Czas rozpoczęcia wyświetlania komunikatu
 unsigned long seconds = 0;            // Licznik sekund timera
 unsigned int PSRAM_lenght = MAX_STATIONS * (STATION_NAME_LENGTH) + MAX_STATIONS; // deklaracjia długości pamięci PSRAM
-uint8_t StationNameStreamWidth = 0;  // Test pełnej nazwy stacji
+unsigned long lastCheckTime = 0; 
+uint8_t stationNameStreamWidth = 0;  // Test pełnej nazwy stacji
 uint8_t x = 0;                             // Globalna zmienna pomocnicza 
 
 unsigned long vuMeterTime;                 // Czas opznienia odswiezania wskaznikow VU w milisekundach
@@ -237,7 +239,7 @@ uint8_t vuMeterR;                          // Wartosc VU dla R kanału zakres 0-
 unsigned long scrollingStationStringTime;  // Czas do odswiezania scorllingu
 unsigned long scrollingRefresh = 65;       // Czas przewijania tekstu i odswiezania VUmetera
 
-uint16_t stationStringWidth;               //szerokosc Stringu nazwy stacji
+uint16_t stationStringScrollWidth;               //szerokosc Stringu nazwy stacji
 uint16_t xPositionStationString = 0;       // Pozycja początkowa dla przewijania tekstu StationString
 uint16_t offset;                          // Zminnna offsetu dla funkcji Scrollera - przewijania streamtitle na ekranie OLED
 unsigned char * psramData;                  // zmienna do trzymania danych stacji w pamieci PSRAM
@@ -267,21 +269,11 @@ String fileNameString;               // Zmienna przechowująca informację o naz
 String folderNameString;             // Zmienna przechowująca informację o nazwie folderu
 String PlayedFolderName;             // Nazwa aktualnie odtwarzanego folderu
 String currentIP;
-String StationNameStream;           // Nazwa stacji wyciągnieta z danych wysylanych przez stream
+String stationNameStream;           // Nazwa stacji wyciągnieta z danych wysylanych przez stream
 String header;                      // Zmienna dla serwera www
 
-
-// Przygotowanie danych pogody do wyświetlenia
-/*
-String tempStr;           // Zmienna do przechowywania temperatury
-String feels_likeStr;     // Zmienna do przechowywania temperatury odczuwalnej
-String humidityStr;       // Zmienna do przechowywania wilgotności
-String pressureStr;       // Zmienna do przechowywania ciśnienia atmosferycznego
-String windStr;           // Zmienna do przechowywania prędkości wiatru
-String windGustStr;       // Zmienna do przechowywania prędkości porywów wiatru
-*/
-
 File myFile;  // Uchwyt pliku
+
 
 U8G2_SSD1322_NHD_256X64_F_4W_HW_SPI u8g2(U8G2_R2, /* cs=*/CS_OLED, /* dc=*/DC_OLED, /* reset=*/RESET_OLED);  // Hardware SPI 3.12inch OLED
 //U8G2_SH1122_256X64_F_4W_HW_SPI u8g2(U8G2_R0, /* cs=*/ CS_OLED, /* dc=*/ DC_OLED, /* reset=*/ RESET_OLED);		// Hardware SPI  2.08inch OLED
@@ -725,7 +717,8 @@ enum MenuOption
 MenuOption currentOption = INTERNET_RADIO;  // Aktualnie wybrana opcja menu (domyślnie radio internetowe)
 
 // Funkcja sprawdza, czy plik jest plikiem audio na podstawie jego rozszerzenia
-bool isAudioFile(const char *filename) {
+bool isAudioFile(const char *filename) 
+{
   // Dodaj więcej rozszerzeń plików audio, jeśli to konieczne
   //  return (strstr(filename, ".mp3") || strstr(filename, ".MP3") || strstr(filename, ".wav") || strstr(filename, ".WAV") || strstr(filename, ".flac") || strstr(filename, ".FLAC"));
   //}
@@ -746,17 +739,17 @@ bool isAudioFile(const char *filename) {
 int recv_pin = 15;  // GPIO odbiornika IR
 
 // zmienne obsługi  pilota IR
-volatile bool pulse_ready = false;  // Flaga sygnału gotowości
-unsigned long pulse_start = 0;      // Czas początkowy impulsu
-unsigned long pulse_end = 0;        // Czas końcowy impulsu
+bool pulse_ready = false;  // Flaga sygnału gotowości
+unsigned long pulse_start_high = 0;      // Czas początkowy impulsu
+unsigned long pulse_end_high = 0;        // Czas końcowy impulsu
 unsigned long pulse_duration = 0;   // Czas trwania impulsu
 unsigned long pulse_duration_9ms = 0;   // Tylko do analizy - Czas trwania impulsu
 unsigned long pulse_duration_4_5ms = 0; // Tylko do analizy - Czas trwania impulsu
 unsigned long pulse_duration_560us = 0; // Tylko do analizy - Czas trwania impulsu
 unsigned long pulse_duration_1690us = 0; // Tylko do analizy - Czas trwania impulsu
 
-volatile bool pulse_ready9ms = false;  // Flaga sygnału gotowości puls 9ms
-volatile bool pulse_ready_low = false;  // Flaga sygnału gotowości 
+bool pulse_ready9ms = false;  // Flaga sygnału gotowości puls 9ms
+bool pulse_ready_low = false;  // Flaga sygnału gotowości 
 unsigned long pulse_start_low = 0;      // Czas początkowy impulsu
 unsigned long pulse_end_low = 0;        // Czas końcowy impulsu
 unsigned long pulse_duration_low = 0;   // Czas trwania impulsu
@@ -767,7 +760,7 @@ int bit_count = 0;          // Licznik bitów w odebranym kodzie
 // Progi przełączeń dla sygnałów czasowych pilota IR
 const int LEAD_HIGH = 9050;         // 9 ms sygnał wysoki (początkowy)
 const int LEAD_LOW = 4500;          // 4,5 ms sygnał niski (początkowy)
-const int TOLERANCE = 130;          // Tolerancja (w mikrosekundach)
+const int TOLERANCE = 150;          // Tolerancja (w mikrosekundach)
 const int HIGH_THRESHOLD = 1690;    // Sygnał "1"
 const int LOW_THRESHOLD = 600;//560;// Sygnał "0"
 
@@ -778,35 +771,31 @@ bool rcInputDigitsMenuEnable = false;
 
 const int keyboardPin = 9;  // wejscie klawiatury (ADC)
 
-// Debouncing przycisku
-//unsigned long lastButtonPress;
-//unsigned long keyboardDelay;
-//const unsigned long keyboardDebounceDelay = 100;
 unsigned long keyboardValue = 0;
-//unsigned long keyboardValue2 = 0;
 unsigned long keyboardLastSampleTime = 0;
 unsigned long keyboardSampleDelay = 50;
 
 
 // Progi przełaczania ADC dla klawiatury matrycowej 5x3
-const int keyboardButtonThresholdTolerance = 10; 
+const int keyboardButtonThresholdTolerance = 20; 
 const int keyboardButtonNeutral = 4095;//2030; //1900;  // Pozycja 0
-const int keyboardButtonThreshold_0 = 2400                                                              ;  // Pozycja 0
+const int keyboardButtonThreshold_0 = 2375                                                              ;  // Pozycja 0
 const int keyboardButtonThreshold_1 = 10;//330;  // Pozycja 1
 const int keyboardButtonThreshold_2 = 545;//560;  // Pozycja 2
 const int keyboardButtonThreshold_3 = 1390;//720;  // Pozycja 3
-const int keyboardButtonThreshold_4 = 1930;//870;  // Pozycja 4
-const int keyboardButtonThreshold_5 = 2300;//980;  // Pozycja 5
+const int keyboardButtonThreshold_4 = 1925;//870;  // Pozycja 4
+const int keyboardButtonThreshold_5 = 2285;//980;  // Pozycja 5
 const int keyboardButtonThreshold_6 = 385;//330;  // Pozycja 6
 const int keyboardButtonThreshold_7 = 875;//560;  // Pozycja 7
-const int keyboardButtonThreshold_8 = 1595;//720;  // Pozycja 8
-const int keyboardButtonThreshold_9 = 2065;//870;  // Pozycja 9
-const int keyboardButtonThreshold_Shift = 2485; // Shift
-const int keyboardButtonThreshold_Memory = 2185; // Memory
-const int keyboardButtonThreshold_Band = 1650; // Band
-const int keyboardButtonThreshold_Auto = 735; // Shift
-const int keyboardButtonThreshold_Scan = 1765; // Shift
-const int keyboardButtonThreshold_Mute = 1135; // Shift
+const int keyboardButtonThreshold_8 = 1585;//720;  // Pozycja 8
+const int keyboardButtonThreshold_9 = 2055;//870;  // Pozycja 9
+const int keyboardButtonThreshold_Shift = 2455; // Shift
+const int keyboardButtonThreshold_Memory = 2170; // Memory
+const int keyboardButtonThreshold_Band = 1640; // Band
+const int keyboardButtonThreshold_Auto = 730; // Shift
+const int keyboardButtonThreshold_Scan = 1760; // Shift
+const int keyboardButtonThreshold_Mute = 1130; // Shift
+
 // Flagi do monitorowania stanu klawiatury
 bool keyboardButtonPressed = false; // Wcisnięcie klawisza
 bool debugKeyboard = false;         // Wyłącza wywoływanie funkcji i zostawia tylko wydruk pomiaru ADC
@@ -897,6 +886,9 @@ void handleButtons() {
 
       if (millis() - buttonPressTime2 >= buttonLongPressTime2 && millis() - buttonPressTime2 >= buttonSuperLongPressTime2 && action3Taken == false) 
       {
+        encoderFunctionOrderChange();
+        
+        /*
         displayActive = true;
         displayStartTime = millis();
         volumeSet = false;
@@ -907,6 +899,8 @@ void handleButtons() {
         Serial.println(debugKeyboard);
         //vuMeterMode = !vuMeterMode;
         //audio.setTone(6, -4, 6);
+        */
+
         action3Taken = true;
       }
 
@@ -914,213 +908,23 @@ void handleButtons() {
       // Jeśli przycisk jest wciśnięty przez co najmniej 3 sekundy i akcja jeszcze nie była wykonana
       if (millis() - buttonPressTime2 >= buttonLongPressTime2 && !action2Taken && millis() - buttonPressTime2 < buttonSuperLongPressTime2) {
         Serial.println("debug--Bank Menu");
-        
         bankMenuDisplay();
-        /*
-        volumeSet = false;
-        previous_bank_nr = bank_nr;  // jesli weszlimy do menu "wybór banku" to zapisujemy obecny bank zanim zaczniemy krecic enkoderem
-        bankMenuEnable = true;
-        timeDisplay = false;
-        //bankChange = true;
-        //currentOption = BANK_LIST;  // Ustawienie listy banków do przewijania i wyboru
-        String bankNrStr = String(bank_nr);
-        Serial.println("Wyświetlenie listy banków");
-        u8g2.clearBuffer();
-        u8g2.setFont(u8g2_font_fub14_tf);
-        u8g2.drawStr(80, 33, "BANK:");
-        u8g2.drawStr(145, 33, String(bank_nr).c_str());  // numer banku
-
-        u8g2.drawRFrame(21, 42, 214, 14, 3);                // Ramka do slidera bankow
-        u8g2.drawRBox((bank_nr * 13) + 10, 44, 15, 10, 2);  // wypełnienie slidera
-        u8g2.sendBuffer();
-        x = 0;
-        */
+        
         // Ustawiamy flagę akcji, aby wykonała się tylko raz
         action2Taken = true;
       }
     }
-  } else {
-    //encoderButton2 = false;  // Przywracamy stan przycisku
+  } 
+  else 
+  {
     isButton2Pressed = false;  // Resetujemy flagę naciśnięcia przycisku enkodera 2
     action2Taken = false;      // Resetujemy flagę akcji dla enkodera 2
     action3Taken = false;
   }
 }
 
-
-// Funkcja do pobierania danych z API z serwera pogody openweathermap.org
-/*
-void getWeatherData()
-{
-  HTTPClient http;  // Utworzenie obiektu HTTPClient
-  
-  String url = "http://api.openweathermap.org/data/2.5/weather?q=Piła,pl&appid=your_own_API_key";  // URL z danymi do API, na końcu musi być Twój unikalny klucz API otrzymany po resetracji w serwisie openweathermap.org
-
-  http.begin(url);  // Inicjalizacja połączenia HTTP z podanym URL-em, otwieramy połączenie z serwerem.
-
-  int httpCode = http.GET();  // Wysłanie żądanie GET do serwera, aby pobrać dane pogodowe
-
-  if (httpCode == HTTP_CODE_OK)  // Sprawdzenie, czy odpowiedź z serwera była prawidłowa (kod 200 OK)
-  {
-    String payload = http.getString();  // Pobranie odpowiedzi z serwera w postaci ciągu znaków (JSON)
-    Serial.println("Odpowiedź JSON z API:");
-    Serial.println(payload); 
-
-    DeserializationError error = deserializeJson(doc, payload);  // Deserializujemy dane JSON do obiektu dokumentu
-    if (error)  // Sprawdzamy, czy deserializacja JSON zakończyła się niepowodzeniem
-    {
-      Serial.print(F("deserializeJson() failed: "));  // Jeśli jest błąd, drukujemy komunikat o błędzie
-      Serial.println(error.f_str());  // Wydruk szczegółów błędu deserializacji
-      return;  // Zakończenie funkcji w przypadku błędu
-    }
-    if (timeDisplay == true)
-    {
-     updateWeather();  // Jeśli deserializacja zakończyła się sukcesem, wywołujemy funkcję `updateWeather`, aby zaktualizować wyświetlacz i serial terminal
-    }
-  }
-  else  // Jeśli połączenie z serwerem nie powiodło się
-  {
-    Serial.println("Błąd połączenia z serwerem.");
-    //u8g2.drawStr(0, 62, "                                           ");
-    //u8g2.drawStr(0, 62, "Brak polaczenia z serwerem pogody");
-    u8g2.sendBuffer();  
-  }
-
-  http.end();  // Zakończenie połączenia HTTP, zamykamy zasoby
-}
-
-// Funkcja do aktualizacji danych pogodowych
-void updateWeather()
-{
-  //u8g2.drawStr(0, 62, "                                           "); // Wypełnienie spacjami jako czyszczenie linii
-
-  JsonObject root = doc.as<JsonObject>();  // Konwertuje dokument JSON do obiektu typu JsonObject
-
-  JsonObject main = root["main"];  // Pobiera obiekt "main" zawierający dane główne, takie jak temperatura, wilgotność, ciśnienie
-  JsonObject weather = root["weather"][0];  // Pobiera pierwszy element z tablicy "weather", który zawiera dane o pogodzie
-  JsonObject wind = root["wind"];  // Pobiera obiekt "wind" zawierający dane o wietrze
-
-  unsigned long timestamp = root["dt"];  // Pobiera timestamp (czas w sekundach) z JSON
-  String formattedDate = convertTimestampToDate(timestamp);  // Konwertuje timestamp na sformatowaną datę i godzinę
-
-  float temp = main["temp"].as<float>() - 273.15;  // Pobiera temperaturę w Kelvinach i konwertuje ją na °C
-  float feels_like = main["feels_like"].as<float>() - 273.15;  // Pobiera odczuwalną temperaturę i konwertuje ją na °C
-
-  int humidity = main["humidity"];  // Pobiera wilgotność powietrza
-  String weatherDescription = weather["description"].as<String>();  // Pobiera opis pogody (np. "light rain")
-  String icon = weather["icon"].as<String>();  // Pobiera kod ikony pogody (np. "10d" dla deszczu)
-  float windSpeed = wind["speed"];  // Pobiera prędkość wiatru w m/s
-  float windGust = wind["gust"];  // Pobiera prędkość podmuchów wiatru w m/s
-  float pressure = main["pressure"].as<float>();  // Pobiera ciśnienie powietrza w hPa
-
-  Serial.println("Dane z JSON:");
-  Serial.print("Data: ");
-  Serial.println(formattedDate);
-  Serial.print("Temperatura: ");
-  Serial.print(temp, 2);
-  Serial.println(" °C");
-  tempStr = "Temperatura: " + String(temp, 2) + " C";
-  
-  Serial.print("Odczuwalna temperatura: ");
-  Serial.print(feels_like, 2);
-  Serial.println(" °C");
-  feels_likeStr = "Odczuwalna: " + String(feels_like, 2) + " C";
-  
-  Serial.print("Wilgotność: ");
-  Serial.print(humidity);
-  Serial.println(" %");
-  humidityStr = "Wilgotnosc: " + String(humidity) + " %";
-  
-  Serial.print("Ciśnienie: ");
-  Serial.print(pressure);
-  Serial.println(" hPa");
-  pressureStr = "Cisnienie: " + String(pressure, 2) + " hPa";
-  
-  Serial.print("Opis pogody: ");
-  Serial.println(weatherDescription);
-  Serial.print("Ikona: ");
-  Serial.println(icon);
-  
-  Serial.print("Prędkość wiatru: ");
-  Serial.print(windSpeed, 2);
-  Serial.println(" m/s");
-  windStr = "Wiatr: " + String(windSpeed) + " m/s";
-  
-  Serial.print("Podmuchy wiatru: ");
-  Serial.print(windGust, 2);
-  Serial.println(" m/s");
-  windGustStr = "W podmuchach: " + String(windGust) + " m/s";
-}
-
-// Funkcja do przełączania między różnymi danymi pogodowymi, które są wyświetlane na ekranie
-void switchWeatherData()
-{
-  //u8g2.setFont(u8g2_font_spleen6x12_mr);
-  u8g2.setFont(spleen6x12PL);
-  if (timeDisplay == true)
-  {
-  if (cycle == 0)
-    {
-      //u8g2.drawStr(0, 62, "                                           ");
-      //u8g2.drawStr(0, 62, tempStr.c_str());
-      //u8g2.drawStr(130, 62, feels_likeStr.c_str()); 
-    } 
-    else if (cycle == 1)
-    {
-      //u8g2.drawStr(0, 62, "                                           ");
-      //u8g2.drawStr(0, 62, windStr.c_str());
-      //u8g2.drawStr(110, 62, windGustStr.c_str());
-    } 
-    else if (cycle == 2)
-    {
-      //u8g2.drawStr(0, 62, "                                           ");
-      //u8g2.drawStr(0, 62, humidityStr.c_str());
-      //u8g2.drawStr(115, 62, pressureStr.c_str());
-    }
-
-  //  u8g2.sendBuffer();
-  }
-  // Zmiana cyklu: przechodzimy do następnego zestawu danych
-  cycle++;
-  if (cycle > 2) 
-  {
-    cycle = 0;  // Wracamy do cyklu 0 po trzecim cyklu
-  }
-}
-*/
-
-// Funkcja konwertująca timestamp na datę i godzinę w formacie "YYYY-MM-DD HH:MM:SS"
-/*
-String convertTimestampToDate(unsigned long timestamp)  
-{
-  int year, month, day, hour, minute, second;  // Deklaracja zmiennych dla roku, miesiąca, dnia, godziny, minuty i sekundy z pogodynki
-  time_t rawTime = timestamp;                  // Konwersja timestamp na typ time_t, który jest wymagany przez funkcję localtime()
-  struct tm* timeInfo;                         // Wskaźnik na strukturę tm, która zawiera informacje o czasie
-  timeInfo = localtime(&rawTime);              // Konwertowanie rawTime na strukturę tm zawierającą szczegóły daty i godziny
-
-  year = timeInfo->tm_year + 1900;             // Rok jest liczony od 1900 roku, więc musimy dodać 1900
-  month = timeInfo->tm_mon + 1;                // Miesiąc jest indeksowany od 0, więc dodajemy 1
-  day = timeInfo->tm_mday;                     // Dzień miesiąca
-  hour = timeInfo->tm_hour;                    // Godzina (0-23)
-  minute = timeInfo->tm_min;                   // Minuta (0-59)
-  second = timeInfo->tm_sec;                   // Sekunda (0-59)
-
-  // Formatowanie na dwie cyfry (dodawanie zer na początku, jeśli liczba jest mniejsza niż 10)
-  String strMonth = (month < 10) ? "0" + String(month) : String(month);            // Dodaje zero przed miesiącem, jeśli miesiąc jest mniejszy niż 10
-  String strDay = (day < 10) ? "0" + String(day) : String(day);                    // Dodaje zero przed dniem, jeśli dzień jest mniejszy niż 10
-  String strHour = (hour < 10) ? "0" + String(hour) : String(hour);                // Dodaje zero przed godziną, jeśli godzina jest mniejsza niż 10
-  String strMinute = (minute < 10) ? "0" + String(minute) : String(minute);        // Dodaje zero przed minutą, jeśli minuta jest mniejsza niż 10
-  String strSecond = (second < 10) ? "0" + String(second) : String(second);        // Dodaje zero przed sekundą, jeśli sekunda jest mniejsza niż 10
-
-  // Tworzenie sformatowanej daty w formacie "YYYY-MM-DD HH:MM:SS"
-  String date = String(year) + "-" + strMonth + "-" + strDay + " " + strHour + ":" + strMinute + ":" + strSecond;
-                
-  return date;  // Zwraca sformatowaną datę jako String
-}
-*/
-
 //Funkcja odpowiedzialna za zapisywanie informacji o stacji do pamięci EEPROM.
-void saveStationToEEPROM(const char *station) {
+void saveStationToPSRAM(const char *station) {
   // Sprawdź, czy istnieje jeszcze miejsce na kolejną stację w pamięci EEPROM.
   if (stationsCount < MAX_STATIONS) {
     int length = strlen(station);
@@ -1163,18 +967,17 @@ void saveStationToEEPROM(const char *station) {
 }
 
 // Funkcja odpowiedzialna za zmianę aktualnie wybranej stacji radiowej.
-void changeStation() {
-  
-  
+void changeStation() 
+{
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_fub14_tf); // cziocnka 14x11
   u8g2.drawStr(34, 33, "Loading stream..."); // 8 znakow  x 11 szer
   u8g2.sendBuffer();
 
-  //mp3 = flac = aac = false;
-   mp3 = flac = aac = vorbis = false;
+  mp3 = flac = aac = vorbis = false;
   stationFromBuffer = station_nr;
   stationString.remove(0);  // Usunięcie wszystkich znaków z obiektu stationString
+  stationNameStream.remove(0);
 
   // Tworzymy nazwę pliku banku
   String fileName = String("/bank") + (bank_nr < 10 ? "0" : "") + String(bank_nr) + ".txt";
@@ -1491,7 +1294,7 @@ void sanitizeAndSaveStation(const char *station) {
   sanitizedStation[j] = '\0';
 
   // Zapisz przetworzoną stację do pamięci EEPROM
-  saveStationToEEPROM(sanitizedStation);
+  saveStationToPSRAM(sanitizedStation);
 }
 
 
@@ -1626,7 +1429,7 @@ void audio_eof_mp3(const char *info) {
 void audio_showstation(const char *info) {
   Serial.print("station     ");
   Serial.println(info);
-  //  StationNameStream = info;
+  stationNameStream = info;
 }
 
 void audio_showstreamtitle(const char *info) {
@@ -1981,7 +1784,7 @@ void readVolumeFromSD()
     if (myFile) 
     {
       volumeValue = myFile.parseInt();
-	  myFile.close();
+	    myFile.close();
       
       Serial.println("Wczytano volume.txt z karty SD");
       Serial.print("Wartość Volume odczytany z SD: ");
@@ -1995,10 +1798,11 @@ void readVolumeFromSD()
   else 
   {
     Serial.println("Plik volume.txt nie istnieje.");
-	Serial.print("Wartość Volume domyślna:");
+	  Serial.print("Wartość Volume domyślna:");
     Serial.println(volumeValue);    
   }
   audio.setVolume(volumeValue);  // zakres 0...21
+  volumeBufferValue = volumeValue;
 }
 
 
@@ -2082,21 +1886,24 @@ void drawSignalPower(uint8_t xpwr, uint8_t ypwr, bool print)
   u8g2.setDrawColor(1);
 
   // Rysujemy podstawy 1x1px pod kazdą kreseczką
-  u8g2.drawBox(xpwr,ypwr-1,1,1);
-  u8g2.drawBox(xpwr+2,ypwr-1,1,1);
-  u8g2.drawBox(xpwr+4,ypwr-1,1,1);
-  u8g2.drawBox(xpwr+6,ypwr-1,1,1);
-  u8g2.drawBox(xpwr+8,ypwr-1,1,1);
-  u8g2.drawBox(xpwr+10,ypwr-1,1,1);
+  u8g2.drawBox(xpwr,ypwr - 1, 1, 1);
+  u8g2.drawBox(xpwr + 2, ypwr - 1, 1, 1);
+  u8g2.drawBox(xpwr + 4, ypwr - 1, 1, 1);
+  u8g2.drawBox(xpwr + 6, ypwr - 1, 1, 1);
+  u8g2.drawBox(xpwr + 8, ypwr - 1, 1, 1);
+  u8g2.drawBox(xpwr + 10, ypwr - 1, 1, 1);
 
-  // Rysujemy kreseczki
- if (signalpwr > -90) {signalLevel = 1; u8g2.drawBox(xpwr,ypwr-2,1,1);}
- if (signalpwr > -80) {signalLevel = 2; u8g2.drawBox(xpwr+2,ypwr-3,1,2);}
- if (signalpwr > -70) {signalLevel = 3; u8g2.drawBox(xpwr+4,ypwr-4,1,3);}
- if (signalpwr > -67) {signalLevel = 4; u8g2.drawBox(xpwr+6,ypwr-5,1,4);}
- if (signalpwr > -55) {signalLevel = 5; u8g2.drawBox(xpwr+8,ypwr-6,1,5);}
- if (signalpwr > -38) {signalLevel = 6; u8g2.drawBox(xpwr+10,ypwr-8,1,7);}
-
+ 
+ if (WiFi.status() == WL_CONNECTED)
+ {
+      // Rysujemy kreseczki
+    if (signalpwr > -89) { signalLevel = 1; u8g2.drawBox(xpwr, ypwr - 2, 1, 1); }
+    if (signalpwr > -82) { signalLevel = 2; u8g2.drawBox(xpwr + 2, ypwr - 3, 1, 2); }
+    if (signalpwr > -74) { signalLevel = 3; u8g2.drawBox(xpwr + 4, ypwr - 4, 1, 3); }
+    if (signalpwr > -65) { signalLevel = 4; u8g2.drawBox(xpwr + 6, ypwr - 5, 1, 4); }
+    if (signalpwr > -55) { signalLevel = 5; u8g2.drawBox(xpwr + 8, ypwr - 6, 1, 5); }
+    if (signalpwr > -38) { signalLevel = 6; u8g2.drawBox(xpwr + 10, ypwr - 8, 1, 7);}
+  }
 
   if (print == true) // Jesli flaga print =1 to wypisujemy na serialu sile sygnału w % i w skali 1-6
   {
@@ -2116,55 +1923,62 @@ void drawSignalPower(uint8_t xpwr, uint8_t ypwr, bool print)
 
 
 // Obsługa wyświetlacza dla odtwarzanego strumienia radia internetowego
-void displayRadio() {
+void displayRadio() 
+{
   if (displayMode == 0)
   {
-    //Serial.println("debug---displayRadio inside void");
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_fub14_tf);
     stationName = stationName.substring(0, 23);
     u8g2.drawStr(24, 16, stationName.c_str());
-    //u8g2.drawStr(0, 16, stationName.c_str());
-
+    u8g2.drawRBox(1, 1, 21, 16, 4);  // Rbox pod numerem stacji
+    
     // Funkcja wyswietlania numeru Banku na dole ekranu
     u8g2.setFont(spleen6x12PL);
     char BankStr[8];  //Formatowanie informacji o Banku do postaci Bank 00
     snprintf(BankStr, sizeof(BankStr), "Bank%02d", bank_nr);
 
+    // Wyswietlamy numer Banku w dolnej linijce
+    u8g2.drawBox(154, 54, 1, 12);  // dorysowujemy 1px pasek przed napisem "Bank" dla symetrii
     u8g2.setDrawColor(0);
-    u8g2.setCursor(155, 63);  //160 pozycja napisu Bank 0x na dole ekranu
+    u8g2.setCursor(155, 63);  //160 pozycja napisu Bank0x na dole ekranu
     u8g2.print(BankStr);
-
-    u8g2.setDrawColor(1);
-    u8g2.drawBox(154, 54, 1, 12);  // dorysowujemy 1px pasek przed "Bank"
-    
-    //u8g2.drawRBox(225,1,30,16,4); // Rbox pod numerem stacji
-   u8g2.drawRBox(1, 1, 21, 16, 4);  // Rbox pod numerem stacji
-   // u8g2.drawRBox(0, 0, 20, 15, 4);  // Rbox pod numerem stacji
 
 
     u8g2.setDrawColor(0);
     u8g2.setFont(u8g2_font_spleen8x16_mr);
-    char StationStr[3];
-    snprintf(StationStr, sizeof(StationStr), "%02d", station_nr);  //Formatowanie informacji o stacji i banku do postaci 00
-    //u8g2.setCursor(228, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
-    u8g2.setCursor(4, 14);  // Pozycja numeru stacji na gorze ekranu S0xx
-    //u8g2.setCursor(3, 13);  // Pozycja numeru stacji na gorze ekranu S0xx
-    u8g2.print(StationStr);
-
-    u8g2.setFont(spleen6x12PL);
+    char StationNrStr[3];
+    snprintf(StationNrStr, sizeof(StationNrStr), "%02d", station_nr);  //Formatowanie informacji o stacji i banku do postaci 00
+    u8g2.setCursor(4, 14);                                            // Pozycja numeru stacji na gorze po lewej ekranu
+    u8g2.print(StationNrStr);
     u8g2.setDrawColor(1);
-
-    // Parametry do obługi wyświetlania w 3 kolejnych wierszach z podzialem do pełnych wyrazów
-    //const int maxLineLength = 41;  // Maksymalna długość jednej linii w znakach
-    //String currentLine = "";       // Bieżąca linia
-    //int yPosition = 27;            // Początkowa pozycja Y
-
-    processText(stationString);  // przetwarzamy polsie znaki
-
-    //Liczymy długość napisu StationString i dodajemy separator do przewijanego tekstu
-    stationStringScroll = stationString + "      ";
-    stationStringWidth = u8g2.getUTF8Width(stationStringScroll.c_str());
+    
+    u8g2.setFont(spleen6x12PL);
+        
+    // Jesli stacja nie nadaje stationString to podmieniamy pusty stationString na nazwę staji - stationNameStream
+    if (stationString == "") // Jeżeli stationString jest pusty i stacja go nie nadaje
+    {    
+      if (stationNameStream == "") // jezeli nie ma równiez stationName
+      { 
+        stationStringScroll = "---" ;
+      } // wstawiamy trzy kreseczki do wyswietlenia
+      else // jezeli jest station name to prawiamy w "-- NAZWA --" i wysylamy do scrollera
+      { 
+        stationStringScroll = ("-- " + stationNameStream + " --");
+      }  // Zmienna stationStringScroller przyjmuje wartość stationNameStream
+    }
+    else // Jezeli stationString zawiera dane to przypisujemy go do stationStringScroll do funkcji scrollera
+    {
+      processText(stationString);  // przetwarzamy polsie znaki
+      stationStringScroll = stationString + "      "; // dodajemy separator do przewijanego tekstu
+    }
+    
+    Serial.print("debug -> Display0 (ekran radio) stationStringScroll: ");
+    Serial.println(stationStringScroll);
+        
+        
+    //Liczymy długość napisu stationStringScroll 
+    stationStringScrollWidth = stationStringScroll.length() * 6;
 
     u8g2.drawLine(0, 52, 255, 52);
     String displayString = sampleRateString.substring(1) + "Hz " + bitsPerSampleString + "bit " + bitrateString + "Kbps";
@@ -2172,31 +1986,41 @@ void displayRadio() {
     u8g2.drawStr(0, 63, displayString.c_str());
     u8g2.sendBuffer();
   }
-  else if (displayMode == 1)
+  else if (displayMode == 1) // Tryb wświetlania zegara z 1 linijką radia na dole
   {
     u8g2.clearBuffer();
     u8g2.setDrawColor(1);
     u8g2.setFont(spleen6x12PL);
-    u8g2.drawLine(0, 50, 255, 50);
-    
-    
-    char StationStr[3];
-    snprintf(StationStr, sizeof(StationStr), "%02d", station_nr); 
-    stationName = stationName.substring(0, 26);
-    int StationNameEnd = stationName.indexOf("  ");  
+    u8g2.drawLine(0, 50, 255, 50); // Linia separacyjna zegar, dolna linijka radia
+
+    char StationNrStr[3];
+    snprintf(StationNrStr, sizeof(StationNrStr), "%02d", station_nr); 
+    //stationName = stationName.substring(0, 26);
+    int StationNameEnd = stationName.indexOf("  "); // Wycinamy nazwe stacji tylko do miejsca podwojnej spacji 
     stationName = stationName.substring(0, StationNameEnd);
-    
-    processText(stationString);  // przetwarzamy polsie znaki
 
-    //Liczymy długość napisu StationString i dodajemy separator do przewijanego tekstu
-    stationStringScroll = String(StationStr) + "." + stationName + ", " + stationString + "      ";
-    //stationStringWidth = u8g2.getUTF8Width(stationStringScroll.c_str());
-    stationStringWidth = stationStringScroll.length() * 6;
-   //u8g2.setCursor(0, 63);  // Pozycja numeru stacji na gorze ekranu S0xx
-   // u8g2.print(String(StationStr) + "." + stationName + " - ");
-    
-    //u8g2.drawStr(18, 63, stationName.c_str());
+    if (stationString == "")                // Jeżeli stationString jest pusty i stacja go nie nadaje
+    {   
+      if (stationNameStream == "")          // jezeli nie ma równiez stationName
+      {
+        stationStringScroll = "---" ;
+      }      // wstawiamy trzy kreseczki do wyswietlenia
+      else                                  // jezeli jest brak "stationString" ale jest "stationName" to składamy NR.Nazwa stacji z pliku, nadawany stationNameStream + separator przerwy
+      { 
+        stationStringScroll = String(StationNrStr) + "." + stationName + ", " + stationNameStream + "      ";
+      }
+    }
+    else //stationString != "" -> ma wartość
+    {
+      processText(stationString);  // przetwarzamy polsie znaki
+      stationStringScroll = String(StationNrStr) + "." + stationName + ", " + stationString + "      ";
+      Serial.println(stationStringScroll);
+    }
+	  Serial.print("debug -> Display1 (zegar) stationStringScroll: ");
+    Serial.println(stationStringScroll);
 
+    //Liczymy długość napisu stationStringScrollWidth 
+    stationStringScrollWidth = stationStringScroll.length() * 6;
   }
 }
 
@@ -2506,7 +2330,7 @@ void webServer() {
             // Web Page Heading
             client.println("<body><h1>ESP32 Internet Radio</h1>");
             client.println("<p></p>");
-            client.println("<p>You are listening: <b>" + String(stationName.substring(0, 22)) + "</b> - " + stationString + "</p>");
+            client.println("<p>You are listening: <b>" + String(stationName.substring(0, 23)) + "</b> - " + stationString + "</p>");
             client.println("<p>Station:<b>" + String(station_nr) + "</b>, bank: <b>" + String(bank_nr) + "</b></p>");
             client.println("<p>Volume: <b>" + String(volumeValue) + "</b></p>");
             client.println("<p></p>");
@@ -2557,7 +2381,7 @@ void webServer() {
               {             
               client.println("<tr>");  // bold <b> dla obecnie odtwarzanej stacji
               client.print("<td><p style=\"text-align:center; margin-top: 3px; margin-bottom:3px; background-color: #4CAF50;\"><b>" + String(i + 1) + "</b></p></td>");
-              client.print("<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px;  background-color: #4CAF50; width: 250px;\"><b> " + String(station).substring(0, 26) + "</b></p></td>");
+              client.print("<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px;  background-color: #4CAF50; width: 250px;\"><b> " + String(station).substring(0, 25) + "</b></p></td>");
               //client.println("<td><p style=\"text-align:center; margin-top: 3px; margin-bottom:3px\"; margin:3px>Playing</b></p></td>");
               client.print("</tr>");
               }
@@ -2565,7 +2389,7 @@ void webServer() {
               {
               client.println("<tr>");
               client.print("<td><p style=\"text-align:center; margin-top: 3px; margin-bottom:3px\">" + String(i + 1) + "</p></td>");
-              client.print("<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px; width: 250px;\"> " + String(station).substring(0, 26) + "</p></td>");
+              client.print("<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px; width: 250px;\"> " + String(station).substring(0, 25) + "</p></td>");
               //client.println("<td><p style=\"text-align:center; margin-top: 3px; margin-bottom:3px\"; margin:3px>Play</p></td>");
               client.print("</tr>");
               }
@@ -2891,7 +2715,8 @@ void displayFolders() {
 
 
 // Funkcja do wyświetlania listy stacji radiowych z opcją wyboru poprzez zaznaczanie w negatywie
-void displayStations() {
+void displayStations() 
+{
   listedStations = true;
   u8g2.clearBuffer();  // Wyczyść bufor przed rysowaniem, aby przygotować ekran do nowej zawartości
   u8g2.setFont(spleen6x12PL);
@@ -2905,22 +2730,23 @@ void displayStations() {
   //Serial.print(firstVisibleLine);
 
   // Wyświetlanie stacji, zaczynając od drugiej linii (y=21)
-  for (int i = firstVisibleLine; i < min(firstVisibleLine + maxVisibleLines, stationsCount); i++) {
+  for (int i = firstVisibleLine; i < min(firstVisibleLine + maxVisibleLines, stationsCount); i++) 
+  {
     char station[STATION_NAME_LENGTH + 1];  // Tablica na nazwę stacji o maksymalnej długości zdefiniowanej przez STATION_NAME_LENGTH
     memset(station, 0, sizeof(station));    // Wyczyszczenie tablicy zerami przed zapisaniem danych
 
-    // Odczytaj długość nazwy stacji z EEPROM dla bieżącego indeksu stacji
-    //int length = EEPROM.read(i * (STATION_NAME_LENGTH + 1));
-
+    // Odczytaj długość nazwy stacji z PSRAM dla bieżącego indeksu stacji
     int length = psramData[i * (STATION_NAME_LENGTH + 1)];  //----------------------------------------------
 
     // Odczytaj nazwę stacji z PSRAM jako ciąg bajtów, maksymalnie do STATION_NAME_LENGTH
-    for (int j = 0; j < min(length, STATION_NAME_LENGTH); j++) {
+    for (int j = 0; j < min(length, STATION_NAME_LENGTH); j++) 
+    {
       station[j] = psramData[i * (STATION_NAME_LENGTH + 1) + 1 + j];  // Odczytaj znak po znaku nazwę stacji
     }
 
     // Sprawdź, czy bieżąca stacja to ta, która jest aktualnie zaznaczona
-    if (i == currentSelection) {
+    if (i == currentSelection) 
+    {
       u8g2.setDrawColor(1);                           // Ustaw biały kolor rysowania
       u8g2.drawBox(0, displayRow * 13 - 2, 256, 13);  // Narysuj prostokąt jako tło dla zaznaczonej stacji (x=0, szerokość 256, wysokość 10)
       u8g2.setDrawColor(0);                           // Zmień kolor rysowania na czarny dla tekstu zaznaczonej stacji
@@ -2939,7 +2765,8 @@ void displayStations() {
   u8g2.sendBuffer();     // Wyślij zawartość bufora do ekranu OLED, aby wyświetlić zmiany
 }
 
-void updateTimerFlag() {
+void updateTimerFlag() 
+{
   ActionNeedUpdateTime = true;
 }
 
@@ -2988,7 +2815,9 @@ void updateTimer() {
       u8g2.sendBuffer();
     }
 
-    if ((currentOption == INTERNET_RADIO) && ((mp3 == true) || (flac == true) || (aac == true) || (vorbis == true))) {
+    //if ((currentOption == INTERNET_RADIO) && ((mp3 == true) || (flac == true) || (aac == true) || (vorbis == true))) 
+    if ((currentOption == INTERNET_RADIO) && (timeDisplay == true) && (audio.isRunning() == true))
+    {
       // Struktura przechowująca informacje o czasie
       struct tm timeinfo;
 
@@ -3001,14 +2830,14 @@ void updateTimer() {
       }
 
       // Konwertuj godzinę, minutę i sekundę na stringi w formacie "HH:MM:SS"
-      char timeString[10];  // Bufor przechowujący czas w formie tekstowej
+      char timeString[9];  // Bufor przechowujący czas w formie tekstowej
       //snprintf(timeString, sizeof(timeString), "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 
       if (displayMode == 0)
       { 
         snprintf(timeString, sizeof(timeString), "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
         u8g2.setFont(spleen6x12PL);
-        u8g2.drawStr(208, 63, timeString); //201
+        u8g2.drawStr(208, 63, timeString);
       }
       else if (displayMode == 1)
       {
@@ -3064,6 +2893,30 @@ void updateTimer() {
 
 
       //u8g2.sendBuffer(); // nie piszemy po ekranie w tej funkcji tylko przygotowujemy bufor. Nie mozna pisac podczas pracy scrollera
+    }
+    else if ((currentOption == INTERNET_RADIO) && (timeDisplay == true) && (audio.isRunning() == false))
+    {
+
+      // Struktura przechowująca informacje o czasie
+      struct tm timeinfo;
+      if (!getLocalTime(&timeinfo, 5)) 
+      {
+        Serial.println("Nie udało się uzyskać czasu");
+        return;  // Zakończ funkcję, gdy nie udało się uzyskać czasu
+      }
+      char timeString[9];  // Bufor przechowujący czas w formie tekstowej
+      
+      snprintf(timeString, sizeof(timeString), "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+      u8g2.setFont(spleen6x12PL);
+      u8g2.drawStr(0, 63, "                         ");
+      
+      if (millis() - lastCheckTime >= 1000)
+      {
+      u8g2.drawStr(0, 63, "... No audio stream ! ...");
+      lastCheckTime = millis(); // Zaktualizuj czas ostatniego sprawdzenia
+      }       
+      u8g2.drawStr(208, 63, timeString);
+
     }
   }
 }
@@ -3338,7 +3191,7 @@ void displayRadioScroller() {
   if (displayMode == 0) // Tryb normalny - radio
   {
 
-    if (stationString.length() > 42) 
+    if (stationStringScroll.length() > 42) 
     {
 
       xPositionStationString = offset;
@@ -3346,11 +3199,11 @@ void displayRadioScroller() {
       u8g2.setDrawColor(1);
       do {
         u8g2.drawStr(xPositionStationString, 33, stationStringScroll.c_str());
-        xPositionStationString = xPositionStationString + stationStringWidth;
+        xPositionStationString = xPositionStationString + stationStringScrollWidth;
       } while (xPositionStationString < 256);
       
       offset = offset - 1;
-      if (offset < (65535 - stationStringWidth)) {
+      if (offset < (65535 - stationStringScrollWidth)) {
         offset = 0;
       }
 
@@ -3358,7 +3211,7 @@ void displayRadioScroller() {
       xPositionStationString = 0;
       u8g2.setDrawColor(1);
       u8g2.setFont(spleen6x12PL);
-      u8g2.drawStr(xPositionStationString, 33, stationString.c_str());
+      u8g2.drawStr(xPositionStationString, 33, stationStringScroll.c_str());
       
     }
   } 
@@ -3372,11 +3225,11 @@ void displayRadioScroller() {
       do {
         u8g2.drawStr(xPositionStationString, 61, stationStringScroll.c_str());
 
-        xPositionStationString = xPositionStationString + stationStringWidth;
+        xPositionStationString = xPositionStationString + stationStringScrollWidth;
       } while (xPositionStationString < 256);
       
       offset = offset - 1;
-      if (offset < (65535 - stationStringWidth)) {
+      if (offset < (65535 - stationStringScrollWidth)) {
         offset = 0;
       }
 
@@ -3517,21 +3370,25 @@ void handleKeyboard()
         { bankMenuDisplay();}
         else if ((debugKeyboard == false) && (key == 12)) // Przycisk Shift zatwierdza zmiane stacji, banku, działa jak "OK" na pilocie
         { 
-          if (bankMenuEnable == true)
-          {
-            station_nr = 1;
-            fetchStationsFromServer();
-            bankMenuEnable = false;
-          }
-          changeStation(); 
-          displayRadio();
-          u8g2.sendBuffer();
+         ir_code = rcCmdOk; // Przycisk Auto TUning udaje OK
+          bit_count = 32;
+          calcNec();  // przeliczamy kod pilota na kod oryginalny pełen kod NEC
+         
+         // if (bankMenuEnable == true)
+         // {
+         //   station_nr = 1;
+         //   fetchStationsFromServer();
+         //   bankMenuEnable = false;
+         // }
+         // changeStation(); 
+         // displayRadio();
+         // u8g2.sendBuffer();
         }
         else if ((debugKeyboard == false) && (key == 13)) // Przycisk Auto - przełaczanie tryb Zegar/Radio
         { 
-          displayMode =!displayMode; 
-          displayRadio();
-          u8g2.sendBuffer();
+          ir_code = rcCmdSrc; // Przycisk Auto TUning udaje Src
+          bit_count = 32;
+          calcNec();  // przeliczamy kod pilota na kod oryginalny pełen kod NEC
         }
         else if ((debugKeyboard == false) && (key == 14)) // Przycisk Band udaje Back
         {  
@@ -3547,9 +3404,9 @@ void handleKeyboard()
         }
         else if ((debugKeyboard == false) && (key == 16)) // Przycisk Memory Scan - zmiana janości wyswietlacza - funkcja "Dimmer"
         { 
-        displayBrightness =  displayBrightness + 15;
-        if (displayBrightness > 15){displayBrightness = 0;}
-        u8g2.sendF("ca", 0xC7, displayBrightness);
+          ir_code = rcCmdDirect; // Udajemy komendy pilota
+          bit_count = 32;
+          calcNec();  // przeliczamy kod pilota na kod oryginalny pełen kod NEC
         }
 
 
@@ -3582,8 +3439,8 @@ void bankMenuDisplay()
   if (bankNetworkUpdate == true)
   {
   u8g2.setFont(spleen6x12PL);
-  u8g2.drawStr(178, 24, " NETWORK ");
-  u8g2.drawStr(178, 35, "update ON");
+  u8g2.drawStr(185, 24, "NETWORK ");
+  u8g2.drawStr(188, 34, "UPDATE  ");
   }
   //else
   //{
@@ -3690,14 +3547,13 @@ Serial.println(audio.inBufferFilled());
 //void IRAM_ATTR pulseISR()
 void IRAM_ATTR pulseISR()
 {
-  //runTime1 = esp_timer_get_time();
   if (digitalRead(recv_pin) == HIGH)
   {
-    pulse_start = micros();  // Zapis początku impulsu
+    pulse_start_high = micros();  // Zapis początku impulsu
   }
   else
   {
-    pulse_end = micros();    // Zapis końca impulsu
+    pulse_end_high = micros();    // Zapis końca impulsu
     pulse_ready = true;
   }
 
@@ -3711,10 +3567,7 @@ void IRAM_ATTR pulseISR()
     pulse_ready_low = true;
   }
 
-  //static bool data_start_detected = false;  // Flaga dla sygnału wstępnego
-  //static unsigned long last_pulse_time = 0;
-  
-  // ----------- ANALIZA PULSOW -----------------------------
+   // ----------- ANALIZA PULSOW -----------------------------
   if (pulse_ready_low) // spradzamy czy jest stan niski przez 9ms - start ramki
   {
     pulse_duration_low = pulse_end_low - pulse_start_low;
@@ -3726,6 +3579,7 @@ void IRAM_ATTR pulseISR()
     }
 
   }
+
   // Sprawdzenie, czy impuls jest gotowy do analizy
   if ((pulse_ready== true) && (pulse_ready9ms = true))
   {
@@ -3733,25 +3587,17 @@ void IRAM_ATTR pulseISR()
     pulse_ready9ms = false; // kasujemy flage wykrycia pulsu 9ms
 
     // Obliczenie czasu trwania impulsu
-    pulse_duration = pulse_end - pulse_start;
+    pulse_duration = pulse_end_high - pulse_start_high;
     //Serial.println(pulse_duration); odczyt dlugosci pulsow z pilota - debug
     if (!data_start_detected)
     {
     
       // Oczekiwanie na sygnał 4,5 ms wysoki
-      if (pulse_duration > (LEAD_HIGH - TOLERANCE) && pulse_duration < (LEAD_HIGH + TOLERANCE))
+      if (pulse_duration > (LEAD_LOW - TOLERANCE) && pulse_duration < (LEAD_LOW + TOLERANCE))
       {
-       
-        // Początek sygnału: 9 ms niski
-        //Serial.println("Otrzymano początek sygnału (9 ms niski).");
-        //pulse_duration_9ms = pulse_duration; 
-      }
-      else if (pulse_duration > (LEAD_LOW - TOLERANCE) && pulse_duration < (LEAD_LOW + TOLERANCE))
-      {
-        
         pulse_duration_4_5ms = pulse_duration;
         // Początek sygnału: 4,5 ms wysoki
-        // Serial.println("Otrzymano początek sygnału (4,5 ms wysoki).");
+        
         data_start_detected = true;  // Ustawienie flagi po wykryciu sygnału wstępnego
         bit_count = 0;               // Reset bit_count przed odebraniem danych
         ir_code = 0;                 // Reset kodu IR przed odebraniem danych
@@ -3800,7 +3646,7 @@ void IRAM_ATTR pulseISR()
   }
 //runTime2 = esp_timer_get_time();
 }
-void readRcStoredCodes()
+void readRcStoredCodes(uint8_t x)
 {
   displayStartTime = millis();  // Uaktulniamy czas dla funkcji auto-pwrotu z menu
   displayActive = true;         // Wyswietlacz aktywny
@@ -3812,24 +3658,38 @@ void readRcStoredCodes()
   u8g2.clearBuffer();
   u8g2.setFont(spleen6x12PL);
 
-/* Strona  1 z 2 */
+/* Strona  1 z 3 */
+  if (x == 0) 
+  {
   u8g2.setCursor(0,13); u8g2.print("Vol +:" + String(rcCmdVolumeUp, HEX) +   " Down:" + String(rcCmdArrowDown, HEX) + " Bank-:" + String(rcCmdBankMinus, HEX) + " Equ:" + String(rcCmdAud, HEX));
   u8g2.setCursor(0,26); u8g2.print("Vol -:" + String(rcCmdVolumeDown, HEX) + " Back:" + String(rcCmdBack, HEX) +      " Bank+:" + String(rcCmdBankPlus, HEX));
   u8g2.setCursor(0,39); u8g2.print("Left: " + String(rcCmdArrowRight, HEX) + " Ok:  " + String(rcCmdOk, HEX) +        " Red:  " + String(rcCmdRed, HEX));
   u8g2.setCursor(0,52); u8g2.print("Right:" + String(rcCmdArrowLeft, HEX) +  " Src: " + String(rcCmdSrc, HEX) +       " Green:" + String(rcCmdGreen, HEX));
   u8g2.setCursor(0,63); u8g2.print("Up:   " + String(rcCmdArrowUp, HEX) +    " Mute:" + String(rcCmdMute, HEX) +      " Dim:  " + String(rcCmdDirect, HEX));
-  
+  }
  
- /* Strona  2 z 2 */
-  /*
-  u8g2.setCursor(0,12); u8g2.print("Key 0:" + String(rcCmdKey0, HEX) + "  Key 6:" + String(rcCmdKey0, HEX));
-  u8g2.setCursor(0,24); u8g2.print("Key 1:" + String(rcCmdKey1, HEX) + "  Key 7:" + String(rcCmdKey0, HEX));
-  u8g2.setCursor(0,36); u8g2.print("Key 2:" + String(rcCmdKey2, HEX) + "  Key 8:" + String(rcCmdKey0, HEX));
-  u8g2.setCursor(0,48); u8g2.print("Key 3:" + String(rcCmdKey3, HEX) + "  Key 9:" + String(rcCmdKey0, HEX));
-  u8g2.setCursor(0,60); u8g2.print("Key 4:" + String(rcCmdKey0, HEX) + "  Key 0:" + String(rcCmdKey0, HEX));
-  u8g2.setCursor(0,60); u8g2.print("Key 5:" + String(rcCmdKey0, HEX) + "  Key 0:" + String(rcCmdKey0, HEX));
+ /* Strona  2 z 3 */
   
- */
+  if (x == 1)
+  {
+  u8g2.setCursor(0,13); u8g2.print("Key 0:" + String(rcCmdKey0, HEX) + "  Key 6:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,26); u8g2.print("Key 1:" + String(rcCmdKey1, HEX) + "  Key 7:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,39); u8g2.print("Key 2:" + String(rcCmdKey2, HEX) + "  Key 8:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,52); u8g2.print("Key 3:" + String(rcCmdKey3, HEX) + "  Key 9:" + String(rcCmdKey0, HEX));
+  u8g2.setCursor(0,63); u8g2.print("Key 4:" + String(rcCmdKey0, HEX) + "  Key 0:" + String(rcCmdKey0, HEX));
+  
+  }
+
+
+
+/* Strona  3 z 3 */
+  
+  if (x == 2)
+  {
+  u8g2.setCursor(0,60); u8g2.print("Key 5:" + String(rcCmdKey0, HEX) + "  Key 0:" + String(rcCmdKey0, HEX));
+  }
+
+
 
 // rcCmdKey0 
 //u8g2.drawStr(0, 13, "rcCmdVolumeUp:");
@@ -3877,7 +3737,7 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
   xTone=20;
   if (toneSelect == 1) 
   { 
-    u8g2.drawBox(xTone+56,yTone-9,154,9); // Rysujemy biały pasek pod regulacją danego tonu  
+    u8g2.drawRBox(xTone+56,yTone-9,154,9,1); // Rysujemy biały pasek pod regulacją danego tonu  
     u8g2.setDrawColor(0); 
     u8g2.drawLine(xTone+57,yTone-5,xTone+208,yTone-5);
     //u8g2.drawLine(xTone+57,yTone-4,xTone+208,yTone-4);
@@ -3905,7 +3765,7 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
   xTone=20;
   if (toneSelect == 2) 
   { 
-    u8g2.drawBox(xTone+56,yTone-9,154,9);
+    u8g2.drawRBox(xTone+56,yTone-9,154,9,1);
     u8g2.setDrawColor(0);
     u8g2.drawLine(xTone+57,yTone-5,xTone + 208,yTone-5);
     //u8g2.drawLine(xTone+57,yTone-4,xTone + 208,yTone-4);
@@ -3933,7 +3793,7 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
   xTone=20;
   if (toneSelect == 3) 
   { 
-    u8g2.drawBox(xTone+56,yTone-9,154,9);
+    u8g2.drawRBox(xTone+56,yTone-9,154,9,1);
     u8g2.setDrawColor(0);
     u8g2.drawLine(xTone + 57,yTone-5,xTone + 208,yTone-5);
    // u8g2.drawLine(xTone + 57,yTone-4,xTone + 208,yTone-4); 
@@ -3952,8 +3812,408 @@ void equalizerDisplay() // Funkcja rysująca menu 3-punktowego equalizera
   u8g2.sendBuffer(); 
 }
 
+void basicInfo()
+{
+  displayStartTime = millis();  // Uaktulniamy czas dla funkcji auto-powrotu z menu
+  timeDisplay = false;          // Wyłaczamy zegar
+  displayActive = true;         // Wyswietlacz aktywny
+  u8g2.clearBuffer();
+  u8g2.setFont(spleen6x12PL);
+  u8g2.drawStr(0, 10, "Info:");
+ 
+  u8g2.setCursor(0,25); u8g2.print("ESP32 SN:" + String(ESP.getEfuseMac()) + ",  FW Ver.:" + String(softwareRev));
+  u8g2.setCursor(0,38); u8g2.print("Hostname:" + String(hostname) + ",  WiFi Signal:" + String(WiFi.RSSI()) + "dBm");
+  u8g2.setCursor(0,51); u8g2.print("WiFi SSID:" + String(wifiManager.getWiFiSSID()));
+  u8g2.setCursor(0,64); u8g2.print("IP:" + currentIP + ", MAC:" + String(WiFi.macAddress()) );
+  
+  u8g2.sendBuffer();
+}
 
-void setup() {
+void encoderFunctionOrderChange()
+{
+  displayActive = true;
+  displayStartTime = millis();
+  volumeSet = false;
+  timeDisplay = false;
+  bankMenuEnable = false;
+  encoderFunctionOrder = !encoderFunctionOrder;
+  u8g2.clearBuffer();
+  u8g2.setFont(spleen6x12PL);
+  u8g2.drawStr(1,14,"Encoder function order change:");
+  if (encoderFunctionOrder == false) {u8g2.drawStr(1,28,"Rotate for volume, press for station list");}
+  if (encoderFunctionOrder == true ) {u8g2.drawStr(1,28,"Rotate for station list, press for volume");}
+  u8g2.sendBuffer();
+}
+
+
+void handleEncoder2StationsVolumeClick()
+{
+  CLK_state2 = digitalRead(CLK_PIN2);                       // Odczytanie aktualnego stanu pinu CLK enkodera 2
+  if (CLK_state2 != prev_CLK_state2 && CLK_state2 == HIGH)  // Sprawdzenie, czy stan CLK zmienił się na wysoki
+  {
+    timeDisplay = false;
+    displayActive = true;
+    displayStartTime = millis();
+
+    if ((currentOption == INTERNET_RADIO) && (volumeSet == false) && (bankMenuEnable == false))  // Przewijanie listy stacji radiowych
+    {
+      station_nr = currentSelection + 1;
+      if (digitalRead(DT_PIN2) == HIGH) 
+      {
+        station_nr--;
+        //if (listedStations == 1) station_nr--;
+        if (station_nr < 1) 
+        {
+          station_nr = stationsCount;//1;
+        }
+        Serial.print("Numer stacji do tyłu: ");
+        Serial.println(station_nr);
+        scrollUp();
+      } 
+      else 
+      {
+        station_nr++;
+        //if (listedStations == 1) station_nr++;
+        if (station_nr > stationsCount) 
+        {
+          station_nr = 1;//stationsCount;
+        }
+        Serial.print("Numer stacji do przodu: ");
+        Serial.println(station_nr);
+        scrollDown();
+      }
+      displayStations();
+    } 
+    else 
+    {
+      if ((currentOption == INTERNET_RADIO) && (bankMenuEnable == false)) 
+      {
+        if (digitalRead(DT_PIN2) == HIGH) // pokrecenie enkoderem 2
+        {volumeDown();} 
+        else 
+        {volumeUp();}
+        //volumeDisplay();
+      }
+    }
+
+    if (bankMenuEnable == true)  // Przewijanie listy banków stacji radiowych
+    {
+      if (digitalRead(DT_PIN2) == HIGH) 
+      {
+        bank_nr--;
+        if (bank_nr < 1) 
+        {
+          bank_nr = 16;
+        }
+      } 
+      else 
+      {
+        bank_nr++;
+        if (bank_nr > 16) 
+        {
+          bank_nr = 1;
+        }
+      }
+      bankMenuDisplay();
+    }
+  }
+  prev_CLK_state2 = CLK_state2;
+    
+  
+  if ((currentOption == INTERNET_RADIO) && (button2.isReleased()) && (listedStations == true)) 
+  {
+    listedStations = false;
+    volumeSet = false;
+    changeStation();
+  }
+
+  if ((currentOption == INTERNET_RADIO) && (button2.isPressed()) && (listedStations == false) && (bankMenuEnable == false)) 
+  {
+    displayStartTime = millis();
+    timeDisplay = false;
+    volumeSet = true;
+    displayActive = true;
+    volumeDisplay();  // Po nacisnieciu enkodera2 wyswietlamy menu głośnosci
+  }
+
+
+  if ((button2.isPressed()) && (bankMenuEnable == true)) 
+  {
+    previous_bank_nr = bank_nr;
+
+    station_nr = 1;
+    currentOption = INTERNET_RADIO;
+
+    fetchStationsFromServer();
+    changeStation();
+    u8g2.clearBuffer();
+    displayRadio();
+
+    volumeSet = false;
+    bankMenuEnable = false;
+  }
+
+}
+
+
+void handleEncoder2VolumeStationsClick()
+{
+CLK_state2 = digitalRead(CLK_PIN2);                       // Odczytanie aktualnego stanu pinu CLK enkodera 2
+  if (CLK_state2 != prev_CLK_state2 && CLK_state2 == HIGH)  // Sprawdzenie, czy stan CLK zmienił się na wysoki
+  {
+    timeDisplay = false;
+    displayActive = true;
+    displayStartTime = millis();
+
+    if ((currentOption == INTERNET_RADIO) && (listedStations == false) && (bankMenuEnable == false))  // Przewijanie listy stacji radiowych
+    {
+      if (digitalRead(DT_PIN2) == HIGH) 
+      {
+        volumeDown();
+      } 
+      else 
+      {
+        volumeUp();
+      }
+    } 
+    else 
+    {
+      if ((currentOption == INTERNET_RADIO) && (bankMenuEnable == false) && (volumeSet == true)) 
+      {
+        if (digitalRead(DT_PIN2) == HIGH)  // pokrecenie enkoderem 2
+        {
+          volumeDown();
+        } 
+        else 
+        {
+          volumeUp();
+        }
+      
+      }
+    }
+
+    if ((currentOption == INTERNET_RADIO) && (listedStations == true) && (bankMenuEnable == false)) {
+      station_nr = currentSelection + 1;
+      if (digitalRead(DT_PIN2) == HIGH) 
+      {
+        station_nr--;
+        if (station_nr < 1) { station_nr = stationsCount; }
+        scrollUp();
+      } 
+      else 
+      {
+        station_nr++;
+        if (station_nr > stationsCount) { station_nr = 1; }  //stationsCount;
+        scrollDown();
+      }
+      displayStations();
+    }
+
+    if (bankMenuEnable == true)  // Przewijanie listy banków stacji radiowych
+    {
+      if (digitalRead(DT_PIN2) == HIGH) 
+      {
+        bank_nr--;
+        if (bank_nr < 1) 
+        {
+          bank_nr = 16;
+        }
+      } 
+      else 
+      {
+        bank_nr++;
+        if (bank_nr > 16) 
+        {
+          bank_nr = 1;
+        }
+      }
+      bankMenuDisplay();
+    }
+  }
+  prev_CLK_state2 = CLK_state2;
+
+
+
+
+  if ((currentOption == INTERNET_RADIO) && (button2.isReleased()) && (encoderButton2 == true))  // jestesmy juz w menu listy stacji to zmieniamy stacje po nacisnieciu przycisku
+  {
+    encoderButton2 = false;
+    //  Serial.println("debug--------------------------------> SET ENCODER button 2 FALSE");
+  }
+
+
+  if ((currentOption == INTERNET_RADIO) && (button2.isPressed())) // zmieniamy stację
+  {
+    if ((encoderButton2 == false) && (listedStations == true) && (bankMenuEnable == false) && (volumeSet == false))  // jestesmy juz w menu listy stacji to zmieniamy stacje po nacisnieciu przycisku
+    {
+      // Serial.println("debug--------------------------------------------------> button 2 PRESSED station change");
+      // ir_code = rcCmdOk;  // Udajemy komendy pilota
+      // bit_count = 32;
+      // calcNec(); // przeliczamy kod pilota na kod oryginalny pełen kod NEC
+                                              
+      timeDisplay = true;
+      //displayActive = false;
+     // ActionNeedUpdateTime = true;   
+      listedStations = false;
+      //rcInputDigitsMenuEnable = false;
+      equalizerMenuEnable = false;    
+      //screenRefresh = true;
+      encoderButton2 = true; 
+
+      changeStation();
+      displayRadio();
+      u8g2.sendBuffer();
+      
+      
+    }
+  
+    else if ((encoderButton2 == false) && (listedStations == false) && (bankMenuEnable == false) && (volumeSet == false))  // wchodzimy do listy
+    {
+      displayStartTime = millis();
+      timeDisplay = false;
+      displayActive = true;
+      listedStations = true;
+      currentSelection = station_nr - 1; 
+
+      if (currentSelection >= 0)
+      {
+        if (currentSelection < firstVisibleLine) // jezeli obecne zaznaczenie ma wartosc mniejsza niz pierwsza wyswietlana linia
+        {
+          firstVisibleLine = currentSelection;
+        }
+      }
+      else 
+      {  // Jeśli osiągnięto wartość 0, przejdź do najwyższej wartości
+        if (currentSelection = maxSelection())
+        {
+        firstVisibleLine = currentSelection - maxVisibleLines + 1;  // Ustaw pierwszą widoczną linię na najwyższą
+        }
+      }   
+      displayStations();
+      //Serial.println("debug--------------------------------------------------> button 2 PRESSED station list");
+    } 
+      
+    else if ((listedStations == false) && (bankMenuEnable == true) && (volumeSet == false)) 
+    {
+      displayStartTime = millis();
+      timeDisplay = false;
+      displayActive = true;
+      
+      previous_bank_nr = bank_nr;
+      station_nr = 1;
+      currentOption = INTERNET_RADIO;
+
+      listedStations = false;
+      volumeSet = false;
+      bankMenuEnable = false;
+      bankNetworkUpdate = false;
+
+      fetchStationsFromServer();
+      changeStation();
+      u8g2.clearBuffer();
+      displayRadio();
+      u8g2.sendBuffer();
+
+    }
+  }
+}
+
+void handleEncoder1()
+{
+  CLK_state1 = digitalRead(CLK_PIN1);  // Odczytanie aktualnego stanu pinu CLK enkodera 1
+  if (CLK_state1 != prev_CLK_state1 && CLK_state1 == HIGH) 
+  {
+    timeDisplay = false;
+    displayActive = true;
+    displayStartTime = millis();
+   
+    if (menuEnable == true)  // Przewijanie menu prawym enkoderem
+    {
+      int DT_state1 = digitalRead(DT_PIN1);
+      switch (currentOption) 
+      {
+        case PLAY_FILES:
+          if (DT_state1 == HIGH) 
+          {
+            currentOption = PLAY_FILES;
+          } 
+          else 
+          {
+            currentOption = INTERNET_RADIO;
+          }
+          break;
+
+        case INTERNET_RADIO:
+          if (DT_state1 == HIGH) 
+          {
+            currentOption = PLAY_FILES;
+          } 
+          else 
+          {
+            currentOption = INTERNET_RADIO;
+          }
+          break;
+      }
+      displayMenu();
+    }
+    else  // Regulacja głośności
+    {
+      if (digitalRead(DT_PIN1) == HIGH) 
+      {
+        volumeDown();
+      } 
+      else 
+      {
+        volumeUp();
+      }
+    }
+  }
+  prev_CLK_state1 = CLK_state1;
+
+
+ if ((currentOption == PLAY_FILES) && (button1.isPressed()) && (menuEnable == true)) 
+  {
+    if (!SD.begin(SD_CS)) 
+    {
+      Serial.println("Błąd inicjalizacji karty SD!");
+      return;
+    }
+    
+    folderIndex = 0;
+    currentSelection = 0;
+    firstVisibleLine = 1;
+    //listDirectories("/music");
+    listDirectories(currentDirectory.c_str());
+    audio.stopSong();
+    playFromSelectedFolder();
+  }
+
+  if ((currentOption == INTERNET_RADIO) && (button1.isPressed()) && (menuEnable == true)) {
+    menuEnable = false;
+    changeStation();
+  }
+
+  if ((button1.isPressed()) && (bankMenuEnable == true)) 
+  {
+    bankMenuEnable = false;
+    volumeSet = false;
+    bankNetworkUpdate = true;
+    currentSelection = 0;
+    firstVisibleLine = 0;
+    station_nr = 1;
+    currentOption = INTERNET_RADIO;
+
+    fetchStationsFromServer();
+    changeStation();
+    bankNetworkUpdate = false;
+    u8g2.clearBuffer();
+    displayRadio();
+  }
+
+}
+
+void setup() 
+{
   // Inicjalizuj komunikację szeregową (Serial)
   Serial.begin(115200);
   Serial.println("---------- START of ESP32 Network Radio -----------");
@@ -3974,6 +4234,7 @@ void setup() {
 
   //AudioBuffer(16384);
   audioBuffer.changeMaxBlockSize(16384);
+  wifiManager.setHostname(hostname);
   
 
   // Ustaw pin CS dla karty SD jako wyjście i ustaw go na wysoki stan
@@ -4018,7 +4279,8 @@ void setup() {
   u8g2.begin();
   delay(250);
   // Powitanie na wyswietlaczu:
-
+  u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
+  
   u8g2.drawXBMP(0, 5, notes_width, notes_height, notes);  // obrazek - nutki
   u8g2.setFont(u8g2_font_fub14_tf);
   u8g2.drawStr(58, 17, "Internet Radio");
@@ -4054,8 +4316,10 @@ void setup() {
   //u8g2.sendBuffer();
   u8g2.setFont(spleen6x12PL);
   u8g2.drawStr(5, 62, "Connecting to network...");
+  
+  
   u8g2.sendBuffer();
-
+  u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
   button2.setDebounceTime(50);  // Ustawienie czasu debouncingu dla przycisku enkodera 2
  
   // Inicjalizacja WiFiManagera
@@ -4120,10 +4384,9 @@ void setup() {
     station_nr = temp_station_nr ;  // Przywracamy numer po odczycie stacji
     
     changeStation();
-
+    
     //getWeatherData();
-    //wifiManager.startWebPortal();
-    //previous_bank_nr = bank_nr; // wyrownanie wartosci pamieci poprzedniego banku
+    
     server.begin();
     currentSelection = station_nr - 1; // ustawiamy stacje na liscie na obecnie odtwarzaczną przy starcie radia
     firstVisibleLine = currentSelection + 1; // pierwsza widoczna lina to grająca stacja przy starcie
@@ -4132,7 +4395,8 @@ void setup() {
      firstVisibleLine = currentSelection - 3;
     }
 
-    
+    displayRadio();
+    updateTimer();
 
   } 
   else 
@@ -4142,13 +4406,16 @@ void setup() {
     u8g2.setFont(spleen6x12PL);
     u8g2.drawStr(5, 13, "No network connection");  // W przypadku braku polaczenia wifi - wyswietl komunikat na wyswietlaczu OLED
     u8g2.drawStr(5, 26, "Connect to WiFi: ESP Internet Radio");
-    u8g2.drawStr(5, 39, "Open http://192.168.4.1");
+    u8g2.drawStr(5, 39, "Open web page http://192.168.4.1");
     u8g2.sendBuffer();
   }
   
   //int kbd = xTaskCreatePinnedToCore(handleKeyboard, "handle_Keyboard", 2000, NULL, 1, NULL, 1);
   //if(kbd) {Serial.println("Task kbd created...");} 
   //else {Serial.printf("Couldn't create task %i", kbd);}
+
+
+
 }
 
 void loop() 
@@ -4160,132 +4427,25 @@ void loop()
   button2.loop();         // Wykonuje pętlę dla obiektu button2 (sprawdza stan przycisku z enkodera 2)
   handleButtons();        // Wywołuje funkcję obsługującą przyciski i wykonuje odpowiednie akcje (np. zmiana opcji, wejście do menu)
   webServer();            // Uruchamiamy Web serwer
-  vTaskDelay(3);           // Krótkie opóźnienie, oddaje czas procesora innym zadaniom
+  vTaskDelay(3);          // Krótkie opóźnienie, oddaje czas procesora innym zadaniom
 
   /* -------------- KLAWIATURA --------------*/
   /* Odczyt stanu klawiatura ADC pod GPIO 9 */
-  /*
-  if (millis() - keyboardLastSampleTime >= keyboardSampleDelay) // Sprawdzenie ADC - klawiatury 
-  {
-    keyboardLastSampleTime = millis();
-    handleKeyboard();
-  }
-  */
+  
+//  if (millis() - keyboardLastSampleTime >= keyboardSampleDelay) // Sprawdzenie ADC - klawiatury 
+//  {
+//    keyboardLastSampleTime = millis();
+//    handleKeyboard();
+//  }
+  
+  handleEncoder1(); // Obsługa enkodera 1
+  
+  if (encoderFunctionOrder == 0) { handleEncoder2VolumeStationsClick(); } // Obsługa enkodera 2
+  else if (encoderFunctionOrder == 1) { handleEncoder2StationsVolumeClick(); }
 
-  CLK_state1 = digitalRead(CLK_PIN1);  // Odczytanie aktualnego stanu pinu CLK enkodera 1
-  if (CLK_state1 != prev_CLK_state1 && CLK_state1 == HIGH) 
-  {
-    timeDisplay = false;
-    displayActive = true;
-    displayStartTime = millis();
-   
-    if (menuEnable == true)  // Przewijanie menu prawym enkoderem
-    {
-      int DT_state1 = digitalRead(DT_PIN1);
-      switch (currentOption) 
-      {
-        case PLAY_FILES:
-          if (DT_state1 == HIGH) 
-          {
-            currentOption = PLAY_FILES;
-          } 
-          else 
-          {
-            currentOption = INTERNET_RADIO;
-          }
-          break;
-
-        case INTERNET_RADIO:
-          if (DT_state1 == HIGH) 
-          {
-            currentOption = PLAY_FILES;
-          } 
-          else 
-          {
-            currentOption = INTERNET_RADIO;
-          }
-          break;
-      }
-      displayMenu();
-    }
-    else  // Regulacja głośności
-    {
-      if (digitalRead(DT_PIN1) == HIGH) 
-      {
-        volumeDown();
-      } 
-      else 
-      {
-        volumeUp();
-      }
-    }
-  }
-  prev_CLK_state1 = CLK_state1;
-
-  CLK_state2 = digitalRead(CLK_PIN2);                       // Odczytanie aktualnego stanu pinu CLK enkodera 2
-  if (CLK_state2 != prev_CLK_state2 && CLK_state2 == HIGH)  // Sprawdzenie, czy stan CLK zmienił się na wysoki
-  {
-    timeDisplay = false;
-    displayActive = true;
-    displayStartTime = millis();
-
-    if ((currentOption == INTERNET_RADIO) && (volumeSet == false) && (bankMenuEnable == false))  // Przewijanie listy stacji radiowych
-    {
-      station_nr = currentSelection + 1;
-      if (digitalRead(DT_PIN2) == HIGH) {
-        station_nr--;
-        if (station_nr < 1) {
-          station_nr = stationsCount;//1;
-        }
-        Serial.print("Numer stacji do tyłu: ");
-        Serial.println(station_nr);
-        scrollUp();
-      } else {
-        station_nr++;
-        if (station_nr > stationsCount) {
-          station_nr = 1;//stationsCount;
-        }
-        Serial.print("Numer stacji do przodu: ");
-        Serial.println(station_nr);
-        scrollDown();
-      }
-      displayStations();
-    } 
-    else 
-    {
-      if ((currentOption == INTERNET_RADIO) && (bankMenuEnable == false)) 
-      {
-        if (digitalRead(DT_PIN2) == HIGH) // pokrecenie enkoderem 2
-        {volumeDown();} 
-        else 
-        {volumeUp();}
-        //volumeDisplay();
-      }
-    }
-
-    if (bankMenuEnable == true)  // Przewijanie listy banków stacji radiowych
-    {
-      if (digitalRead(DT_PIN2) == HIGH) 
-      {
-        bank_nr--;
-        if (bank_nr < 1) 
-        {
-          bank_nr = 16;
-        }
-      } 
-      else 
-      {
-        bank_nr++;
-        if (bank_nr > 16) 
-        {
-          bank_nr = 1;
-        }
-      }
-      bankMenuDisplay();
-    }
-  }
-  prev_CLK_state2 = CLK_state2;
-
+  
+  
+ /*---------------------  FUNKCJA BACK / POWROTU ze szystkich opcji Menu, Ustawien, itd ---------------------*/
 
   if (displayActive && (millis() - displayStartTime >= displayTimeout))  // Przywracanie poprzedniej zawartości ekranu po 6 sekundach
   {
@@ -4314,8 +4474,6 @@ void loop()
       saveVolumeOnSD();
       volumeBufferValue = volumeValue;
     }
-    //Serial.print("volumeBufferValue:");
-    //Serial.println(volumeBufferValue);
 
     if ((rcInputDigitsMenuEnable == true) && (station_nr != stationFromBuffer))    
     {
@@ -4342,88 +4500,24 @@ void loop()
     u8g2.sendBuffer();
   }
 
-  if ((currentOption == PLAY_FILES) && (button1.isPressed()) && (menuEnable == true)) {
-    if (!SD.begin(SD_CS)) {
-      Serial.println("Błąd inicjalizacji karty SD!");
-      return;
-    }
-    folderIndex = 0;
-    currentSelection = 0;
-    firstVisibleLine = 1;
-    //listDirectories("/music");
-    listDirectories(currentDirectory.c_str());
-    audio.stopSong();
-    playFromSelectedFolder();
-  }
+ 
 
-  if ((currentOption == INTERNET_RADIO) && (button1.isPressed()) && (menuEnable == true)) {
-    menuEnable = false;
-    changeStation();
-  }
-
-  if ((button1.isPressed()) && (bankMenuEnable == true)) {
-    bankMenuEnable = false;
-    volumeSet = false;
-    bankNetworkUpdate = true;
-    currentSelection = 0;
-    firstVisibleLine = 0;
-    station_nr = 1;
-    currentOption = INTERNET_RADIO;
-
-    fetchStationsFromServer();
-    changeStation();
-    bankNetworkUpdate = false;
-    u8g2.clearBuffer();
-    displayRadio();
-  }
-
-
-  if ((currentOption == INTERNET_RADIO) && (button2.isReleased()) && (listedStations == true)) 
-  {
-    listedStations = false;
-    volumeSet = false;
-    changeStation();
-  }
-
-  if ((currentOption == INTERNET_RADIO) && (button2.isPressed()) && (listedStations == false) && (bankMenuEnable == false)) 
-  {
-    displayStartTime = millis();
-    timeDisplay = false;
-    volumeSet = true;
-    displayActive = true;
-    volumeDisplay();  // Po nacisnieciu enkodera2 wyswietlamy menu głośnosci
-  }
-
-
-  if ((button2.isPressed()) && (bankMenuEnable == true)) {
-    previous_bank_nr = bank_nr;
-
-    station_nr = 1;
-    currentOption = INTERNET_RADIO;
-
-    fetchStationsFromServer();
-    changeStation();
-    u8g2.clearBuffer();
-    displayRadio();
-
-    volumeSet = false;
-    bankMenuEnable = false;
-  }
-
+/*
   if (updateTimeAtStart = false)  // aktualizujemy zegar i wyswietlacz ale tylko raz przy starcie zanim wejdziemy do funkcji millis odswiezania scrollera
   {
     displayRadio();
     updateTimer();
     updateTimeAtStart = true;
   }
-  
+*/
 
- 
-  
+ /*---------------------  PILOT IR - NEC  ---------------------*/ 
+
   if (bit_count == 32) // sprawdzamy czy odczytalismy w przerwaniu pełne 32 bity kodu IR NEC
   {
     if (ir_code != 0) // sprawdzamy czy zmienna ir_code nie jest równa 0
     {
+      
       detachInterrupt(recv_pin); // rozpinay przerwanie
       Serial.print("Kod NEC OK:");
       Serial.print(ir_code, HEX);
@@ -4542,7 +4636,7 @@ void loop()
         station_nr--;
         if (station_nr < 1) 
         {
-          station_nr = 1;
+          station_nr = stationsCount;//1;
         }
         //Serial.print("Numer stacji do tyłu: ");
         //Serial.println(station_nr);
@@ -4565,7 +4659,7 @@ void loop()
         station_nr++;
         if (station_nr > stationsCount) 
 	      {
-          station_nr = stationsCount;
+          station_nr = 1;//stationsCount;
         }
         
         Serial.println(station_nr);
@@ -4628,7 +4722,8 @@ void loop()
 
         station_nr = stationFromBuffer;
         bank_nr = previous_bank_nr;
-        
+        screenRefresh = true;
+
         displayRadio();
         u8g2.sendBuffer();
       }
@@ -4645,20 +4740,14 @@ void loop()
         }
         displayRadio();
       }
-      else if (ir_code == rcCmdGreen) {readRcStoredCodes();}//vuMeterMode = !vuMeterMode;} // Zmiana trybu VU meter z przerywanych kresek na ciągłe paski
-      else if (ir_code == rcCmdDirect) {
-        displayBrightness =  displayBrightness + 15;
-        if (displayBrightness > 15){displayBrightness = 0;}
-        u8g2.sendF("ca", 0xC7, displayBrightness);
+      else if (ir_code == rcCmdGreen) 
+        {
+         readRcStoredCodes(rcPage); // Sprawdzenie komend pilota - funkcja testowa
+         rcPage++;
+         if (rcPage > 2) {rcPage = 0;}
         }
-      else if (ir_code == rcCmdSrc) 
-      {
-        displayMode++;
-        if (displayMode > 1) {displayMode=0;}
-        displayRadio();
-        u8g2.sendBuffer();
-      }
-      else if (ir_code == rcCmdRed) 
+        //vuMeterMode = !vuMeterMode;} // Zmiana trybu VU meter z przerywanych kresek na ciągłe paski
+      else if (ir_code == rcCmdDirect) // Przycisk Direct -> Menu Bank - udpate GitHub, Menu Equalizer - reset wartosci, Radio Display - fnkcja przyciemniania ekranu
       {
         if ((bankMenuEnable == true) && (equalizerMenuEnable == false))// flage można zmienic tylko bedąc w menu wyboru banku
         { 
@@ -4673,14 +4762,31 @@ void loop()
           equalizerDisplay();
         }
         if ((bankMenuEnable == false) && (equalizerMenuEnable == false) && (volumeSet == false))
-         { 
-          readEqualizerFromSD();
-          readVolumeFromSD();
-          equalizerDisplay();
-         }
+        { 
+        displayBrightness =  displayBrightness + 15;
+        if (displayBrightness > 15){displayBrightness = 0;}
+        u8g2.sendF("ca", 0xC7, displayBrightness);
+        }
+      }      
+      else if (ir_code == rcCmdSrc) 
+      {
+        displayMode++;
+        if (displayMode > 1) {displayMode=0;}
+        displayRadio();
+        u8g2.sendBuffer();
+        timeDisplay = true;
+        ActionNeedUpdateTime = true;
+        listedStations = false;
+        displayActive = false;
 
       }
-      else if (ir_code == rcCmdDirect) {vuMeterOn = !vuMeterOn; displayRadio();}     
+      else if (ir_code == rcCmdRed) 
+      {
+        basicInfo();
+        debugAudioBuffor = !debugAudioBuffor;     
+        
+      }
+      //else if (ir_code == rcCmdDirect) {vuMeterOn = !vuMeterOn; displayRadio();}     
       else if (ir_code == rcCmdBankMinus) 
       {
       if (bankMenuEnable == true)
@@ -4708,7 +4814,8 @@ void loop()
       }
      
       else if (ir_code == rcCmdAud)
-      {//debugAudioBuffor = !debugAudioBuffor;
+      {
+        //debugAudioBuffor = !debugAudioBuffor;
         //toneSelect = 1;
         equalizerDisplay();
       }
@@ -4741,7 +4848,8 @@ void loop()
     Serial.println(" DWORD");
   }
 
-  // petla millis oswiezajaca scroller i VU metter, dodatkowo sprawdza flage odswiezenia czasu zegara na ekranie OLED
+  /*---------------------  Odswiezanie VU Meter, Time, Scroller, OLED, WiFi ---------------------*/ 
+  
   if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true)) 
   {
     scrollingStationStringTime = millis();
@@ -4749,7 +4857,7 @@ void loop()
     if (screenRefresh == true)  // Dodatkowe odswiezanie ekranu aby usunąc "artefakty", pętla 3x 65ms VU metera
     {
       screenRefreshCount++;
-      if (screenRefreshCount > 4)
+      if (screenRefreshCount > 6)
       {
         screenRefresh = false;
         screenRefreshCount = 0;
