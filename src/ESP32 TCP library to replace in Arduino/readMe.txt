@@ -1,0 +1,1 @@
+Replace this two files in Arduino ESP32 core folder. This increase wfi throughoutput for FLAC stations streaming correctly.
