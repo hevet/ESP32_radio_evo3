@@ -171,6 +171,11 @@ int buttonLongPressTime2 = 2000;       // Czas reakcji na długie nacisniecie en
 int buttonShortPressTime2 = 500;       // Czas rekacjinna krótkie nacisniecie enkodera 2
 int buttonSuperLongPressTime2 = 4000;  // Czas reakcji na super długie nacisniecie enkoder 2
 
+int displayDimmerTimeCounter = 0;      // Zmienna inkrementowana w przerwaniu timera 2 do przycimniania wyswietlacz
+uint8_t dimmerDisplayBrightness = 4;   // Wartość przyciemnienia wyswietlacza po czasie niekatywnosci tunera
+uint16_t displayDimmerSetTime = 10;      // Czas po jakim nastąpi przyciemninie wyswietlacza, liczony w sekundach
+
+
 int8_t toneLowValue = 0;               // Wartosc filtra dla tonow niskich
 int8_t toneMidValue = 0;               // Wartosc flitra dla tonow srednich
 int8_t toneHiValue = 0;                // Wartość filtra dla tonow wysokich
@@ -218,6 +223,7 @@ bool updateTimeAtStart = false;    // AKtualizacja czasu po pierwszym uruchomien
 bool ActionNeedUpdateTime = false; // Zmiena okresaljaca dla displayRadio potrzebe odczytu aktulizacji czasu
 bool debugAudioBuffor = false;
 bool screenRefresh = false;
+bool displayDimmerOn = false;
 
 bool equalizerMenuEnable = false;       // Flaga wyswietlania menu Equalizera
 
@@ -294,7 +300,7 @@ ezButton button2(SW_PIN2);  // Utworzenie obiektu przycisku z enkodera 1 ezButto
 Audio audio;                // Obiekt do obsługi funkcji związanych z dźwiękiem i audio
 AudioBuffer audioBuffer;
 Ticker timer1;              // Timer do updateTimer co 1s
-//Ticker timer2;                            // Timer do getWeatherData co 60s
+Ticker timer2;                            // Timer do getWeatherData co 60s
 //Ticker timer3;                            // Timer do przełączania wyświetlania danych pogodoych w ostatniej linii co 10s
 WiFiClient client;  // Obiekt do obsługi połączenia WiFi dla klienta HTTP
 
@@ -1928,7 +1934,8 @@ void displayRadio()
   if (displayMode == 0)
   {
     u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_fub14_tf);
+    if (encoderFunctionOrder== true) {u8g2.setFont(u8g2_font_fub14_tf);}
+    if (encoderFunctionOrder== false) {u8g2.setFont(DotMatrix13pl);}
     stationName = stationName.substring(0, 23);
     u8g2.drawStr(24, 16, stationName.c_str());
     u8g2.drawRBox(1, 1, 21, 16, 4);  // Rbox pod numerem stacji
@@ -2618,7 +2625,8 @@ void handleEncoder1Rotation() {
 }
 
 // Obsługa kółka enkodera 2 podczas dzialania odtwarzacza plików
-void handleEncoder2Rotation() {
+void handleEncoder2Rotation() 
+{
   CLK_state2 = digitalRead(CLK_PIN2);
   if (CLK_state2 != prev_CLK_state2 && CLK_state2 == HIGH) {
     folderIndex = currentSelection;  // Zaktualizuj indeks folderu
@@ -3829,6 +3837,103 @@ void basicInfo()
   u8g2.sendBuffer();
 }
 
+void audioProcessing(void *p)
+{
+  while (true) {
+  audio.loop();
+  vTaskDelay(1 / portTICK_PERIOD_MS); // Opóźnienie 1 milisekundy
+  }
+}
+
+void recoveryModeCheck()
+{
+  if (digitalRead(SW_PIN2) == 0)
+  {
+    uint8_t recoveryMode = 0;
+    int16_t recoveryModeCounter = 0;
+    u8g2.clearBuffer();
+    u8g2.setFont(spleen6x12PL);
+    u8g2.drawStr(1,14, "RECOVERY / RESET MODE - release encoder");
+    u8g2.sendBuffer();
+    delay(2000);
+    while (digitalRead(SW_PIN2) == 0) {;}  
+    u8g2.drawStr(1,14, "Please Wait...                         ");
+    u8g2.sendBuffer();
+    delay(1000);
+    u8g2.clearBuffer();
+     
+    while (true)
+    {
+      u8g2.drawStr(1,14, "<< -- Rotate Enckoder -- >>           ");
+      CLK_state2 = digitalRead(CLK_PIN2);
+      if (CLK_state2 != prev_CLK_state2 && CLK_state2 == HIGH)  // Sprawdzenie, czy stan CLK zmienił się na wysoki
+      {
+        if (digitalRead(DT_PIN2) == HIGH) 
+        {
+          u8g2.drawStr(1,28, ">> RESET BANK=1, STATION=1 <<");
+          u8g2.drawStr(1,42, "   RESET WIFI SSID, PASSWD   ");  
+          recoveryMode = 0;
+        }
+        else
+        {
+          u8g2.drawStr(1,28, "   RESET BANK=1, STATION=1   ");
+          u8g2.drawStr(1,42, ">> RESET WIFI SSID, PASSWD <<");      
+          recoveryMode = 1;
+        }
+      }
+      u8g2.sendBuffer();
+      
+      if (digitalRead(SW_PIN2) == 0)
+      {
+        if (recoveryMode == 0)
+        {
+          bank_nr = 1;
+          station_nr = 1;
+          saveStationOnSD();
+          u8g2.clearBuffer(); 
+          u8g2.drawStr(1,14, "SET BANK=1, STATION=1         ");
+          u8g2.drawStr(1,28, "ESP will RESET in 3sec.       ");
+          u8g2.sendBuffer();
+          delay(3000);
+          ESP.restart();
+        }  
+        else if (recoveryMode == 1)
+        {
+          u8g2.clearBuffer();
+          u8g2.drawStr(1,14, "WIFI SSID, PASSWD CLEARED   ");
+          u8g2.drawStr(1,28, "ESP will RESET in 3sec.     ");
+          u8g2.sendBuffer();
+          delay(3000);
+          ESP.restart();
+        }
+      }
+      prev_CLK_state2 = CLK_state2;
+    }   
+  } 
+}
+
+void displayDimmerTimer()
+{
+  displayDimmerTimeCounter++;
+  if (displayActive == true){ 
+    displayDimmerTimeCounter = 0;
+    displayDimmer(0);
+    }
+  if (displayDimmerTimeCounter >= displayDimmerSetTime)
+  {
+    displayDimmer(1);
+    displayDimmerTimeCounter = 0;
+  }
+
+}
+
+void displayDimmer(bool dimmerON)
+{
+if ((dimmerON == 1) && (displayBrightness == 15) && (displayDimmerOn == true)) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
+if (dimmerON == 0) { u8g2.sendF("ca", 0xC7, displayBrightness); displayDimmerTimeCounter = 0;}
+}
+
+
 void encoderFunctionOrderChange()
 {
   displayActive = true;
@@ -4365,6 +4470,8 @@ void setup()
     //}
 
     timer1.attach(1, updateTimerFlag);  // Ustaw timer, aby wywoływał funkcję updateTimer co sekundę
+    timer2.attach(1, displayDimmerTimer);
+    
     //timer1.attach(1, updateTimer);   // Ustaw timer, aby wywoływał funkcję updateTimer co sekundę
     //timer2.attach(0.00005,analyzePulseFromIR); // 100us
     //timer2.attach(60, getWeatherData);   // Ustaw timer, aby wywoływał funkcję getWeatherData co 60 sekund
@@ -4378,6 +4485,10 @@ void setup()
     
     readEqualizerFromSD(); // ODczytujemy ustawienia filtrów equalizera z karty SD 
     readVolumeFromSD(); // odczytujemy nastawę głośnosci staertowej
+
+    /*-------------------- RECOVERY MODE --------------------*/
+    recoveryModeCheck();
+
 
     uint8_t temp_station_nr = station_nr; // Chowamy na chwile odczytaną stacje z karty SD
     fetchStationsFromServer();
@@ -4414,6 +4525,19 @@ void setup()
   //if(kbd) {Serial.println("Task kbd created...");} 
   //else {Serial.printf("Couldn't create task %i", kbd);}
 
+  /*
+  int aud = xTaskCreatePinnedToCore(
+    audioProcessing, // Funkcja zadania
+    "handleAudio",  // Nazwa zadania (opcjonalna)
+    16384,            // Rozmiar stosu (w bajtach)
+    NULL,            // Parametry przekazywane do zadania (opcjonalne)
+    2,               // Priorytet zadania (0 to najniższy, im wyższa liczba, tym wyższy priorytet)
+    NULL,            // Uchwyt do zadania (opcjonalny)
+    1);              // Rdzeń, na którym zadanie ma być uruchomione (0 lub 1)
+
+  if(aud) {Serial.println("Task aud created...");}
+  else {Serial.printf("Couldn't create task %i", aud);}
+  */  
 
 
 }
@@ -4437,6 +4561,8 @@ void loop()
 //    keyboardLastSampleTime = millis();
 //    handleKeyboard();
 //  }
+  
+  if (displayActive == true) {displayDimmer(0);}  
   
   handleEncoder1(); // Obsługa enkodera 1
   
@@ -4479,7 +4605,7 @@ void loop()
     {
      changeStation(); 
     }
-    
+    displayDimmer(0);
     displayActive = false;
     timeDisplay = true;
     listedStations = false;
@@ -4542,6 +4668,8 @@ void loop()
       Serial.print(pulse_duration_1690us);
       Serial.print("  690us:");
       Serial.println(pulse_duration_560us);
+
+      displayDimmer(0); // jesli odbierzemy kod z pilota to wyłaczamy przyciemnienie OLED
       
       if (ir_code == rcCmdVolumeUp)      // Przycisk głośniej
       { 
@@ -4783,7 +4911,8 @@ void loop()
       else if (ir_code == rcCmdRed) 
       {
         basicInfo();
-        debugAudioBuffor = !debugAudioBuffor;     
+        debugAudioBuffor = !debugAudioBuffor;
+        displayDimmerOn = !displayDimmerOn;     
         
       }
       //else if (ir_code == rcCmdDirect) {vuMeterOn = !vuMeterOn; displayRadio();}     
