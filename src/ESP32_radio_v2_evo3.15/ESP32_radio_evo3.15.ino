@@ -1920,7 +1920,10 @@ void drawSignalPower(uint8_t xpwr, uint8_t ypwr, bool print)
         Serial.print("Sygnału WiFi: ");
         Serial.print(signal_percent[j]);
         Serial.print("%  Poziom: ");
-        Serial.println(signalLevel);
+        Serial.print(signalLevel);
+        Serial.print("   dBm: ");
+        Serial.println(signalpwr);
+        
         break;
       }
     }
@@ -3903,6 +3906,7 @@ void recoveryModeCheck()
           u8g2.drawStr(1,14, "WIFI SSID, PASSWD CLEARED   ");
           u8g2.drawStr(1,28, "ESP will RESET in 3sec.     ");
           u8g2.sendBuffer();
+          wifiManager.resetSettings();
           delay(3000);
           ESP.restart();
         }
