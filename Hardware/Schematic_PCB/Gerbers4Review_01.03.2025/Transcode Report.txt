@@ -1,0 +1,92 @@
+
+
+   ---- Transcoding 'C:\WorkDirGoogleSync\WorkDir\Projects\Radio internetowe ESP32 v2 net\_GRo\Schematic_PCB\GERBERS\ESP32_radio_rev1.0.GTS' ----   Sat Mar 01 18:22:29 2025
+
+D10   --> D100
+D11   --> D101
+D12   --> D102
+D13   --> D103
+D14   --> D104
+D15   --> D105
+D16   --> D106
+D17   --> D107
+D18   --> D108
+D19   --> D109
+D20   --> D110
+D21   --> D111
+D22   --> D112
+-----------------------------------------------------------------
+
+
+   ---- Transcoding 'C:\WorkDirGoogleSync\WorkDir\Projects\Radio internetowe ESP32 v2 net\_GRo\Schematic_PCB\GERBERS\ESP32_radio_rev1.0.GTL' ----   Sat Mar 01 18:22:29 2025
+
+D10   --> D113
+D11   --> D114
+D12   --> D115
+D13   --> D116
+D14   --> D117
+D15   --> D118
+D16   --> D119
+D17   --> D120
+D18   --> D121
+D19   --> D122
+D20   --> D123
+D21   --> D124
+D22   --> D125
+D23   --> D126
+D24   --> D127
+D25   --> D128
+D26   --> D129
+D27   --> D130
+D28   --> D131
+D29   --> D132
+D30   --> D133
+D31   --> D134
+D32   --> D135
+D33   --> D136
+-----------------------------------------------------------------
+
+
+   ---- Transcoding 'C:\WorkDirGoogleSync\WorkDir\Projects\Radio internetowe ESP32 v2 net\_GRo\Schematic_PCB\GERBERS\ESP32_radio_rev1.0.GML' ----   Sat Mar 01 18:22:29 2025
+
+D10   --> D137
+D11   --> D138
+D12   --> D139
+D13   --> D140
+-----------------------------------------------------------------
+
+
+   ---- Transcoding 'C:\WorkDirGoogleSync\WorkDir\Projects\Radio internetowe ESP32 v2 net\_GRo\Schematic_PCB\GERBERS\ESP32_radio_rev1.0.GBL' ----   Sat Mar 01 18:22:29 2025
+
+D10   --> D141
+D11   --> D142
+D12   --> D143
+D13   --> D144
+D14   --> D145
+D15   --> D146
+D16   --> D147
+D17   --> D148
+D18   --> D149
+D20   --> D150
+D21   --> D151
+D22   --> D152
+D23   --> D153
+D24   --> D154
+-----------------------------------------------------------------
+
+
+   ---- Transcoding 'C:\WorkDirGoogleSync\WorkDir\Projects\Radio internetowe ESP32 v2 net\_GRo\Schematic_PCB\GERBERS\ESP32_radio_rev1.0.GBS' ----   Sat Mar 01 18:22:29 2025
+
+D10   --> D155
+D11   --> D156
+D12   --> D157
+D13   --> D158
+D14   --> D159
+D15   --> D160
+D16   --> D161
+D17   --> D162
+D18   --> D163
+D19   --> D164
+D20   --> D165
+D21   --> D166
+-----------------------------------------------------------------
