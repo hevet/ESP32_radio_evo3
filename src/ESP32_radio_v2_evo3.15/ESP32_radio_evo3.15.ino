@@ -5047,8 +5047,8 @@ void loop()
       {
         screenRefresh = false;
         screenRefreshCount = 0;
-        displayRadio();
-        u8g2.sendBuffer(); 
+        //displayRadio();
+        //u8g2.sendBuffer(); 
       }
 
     }
