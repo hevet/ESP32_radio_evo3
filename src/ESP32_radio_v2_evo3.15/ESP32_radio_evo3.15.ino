@@ -147,7 +147,7 @@ uint8_t bank_nr;                // Numer aktualnie wybranego banku stacji z list
 uint8_t previous_bank_nr = 0;   // Numer banku przed wejsciem do menu zmiany banku
 int bankFromBuffer = 0;         // Numer aktualnie wybranego banku stacji z listy do przywrócenia na ekran po bezczynności
 uint8_t screenRefreshCount = 0; // odświezeanie ekranu dla stajci bez statoin string
-uint8_t screenRefreshCountValue = 8; // Zmiena okreslajaca po ilu petlach nastapia ponowne odświezeanie ekranu OLED dla stajcji
+uint8_t screenRefreshCountValue = 6; // Zmiena okreslajaca po ilu petlach nastapia ponowne odświezeanie ekranu OLED dla stajcji
 
 int CLK_state1;                        // Aktualny stan CLK enkodera prawego
 int prev_CLK_state1;                   // Poprzedni stan CLK enkodera prawego
@@ -237,8 +237,8 @@ unsigned long displayTimeout = 5000;  // Czas wyświetlania komunikatu na ekrani
 unsigned long displayStartTime = 0;   // Czas rozpoczęcia wyświetlania komunikatu
 unsigned long seconds = 0;            // Licznik sekund timera
 unsigned int PSRAM_lenght = MAX_STATIONS * (STATION_NAME_LENGTH) + MAX_STATIONS; // deklaracjia długości pamięci PSRAM
-unsigned long lastCheckTime = 0; 
-uint8_t stationNameStreamWidth = 0;  // Test pełnej nazwy stacji
+unsigned long lastCheckTime = 0;      // No stream audio blink
+uint8_t stationNameStreamWidth = 0;   // Test pełnej nazwy stacji
 uint8_t x = 0;                             // Globalna zmienna pomocnicza 
 
 unsigned long vuMeterTime;                 // Czas opznienia odswiezania wskaznikow VU w milisekundach
@@ -1274,7 +1274,7 @@ void audio_info(const char *info) {
       displayPlayer();
     }
     if (currentOption == INTERNET_RADIO) {
-      displayRadio();
+    //  displayRadio();
     }
   }
 
@@ -2160,7 +2160,7 @@ void drawSignalPower(uint8_t xpwr, uint8_t ypwr, bool print)
     if (signalpwr > -74) { signalLevel = 3; u8g2.drawBox(xpwr + 4, ypwr - 4, 1, 3); } // > 42
     if (signalpwr > -66) { signalLevel = 4; u8g2.drawBox(xpwr + 6, ypwr - 5, 1, 4); } // > 56
     if (signalpwr > -57) { signalLevel = 5; u8g2.drawBox(xpwr + 8, ypwr - 6, 1, 5); } // > 70
-    if (signalpwr > -45) { signalLevel = 6; u8g2.drawBox(xpwr + 10, ypwr - 8, 1, 7);} // > 84
+    if (signalpwr > -50) { signalLevel = 6; u8g2.drawBox(xpwr + 10, ypwr - 8, 1, 7);} // > 84
   }
 
   if (print == true) // Jesli flaga print =1 to wypisujemy na serialu sile sygnału w % i w skali 1-6
@@ -4333,6 +4333,26 @@ void readConfig()
   configFile.close();  // Zamykamy plik po odczycie kodow pilota
 }
 
+void clearFlags()
+{
+    displayDimmer(0);
+    displayActive = false;
+    timeDisplay = true;
+    listedStations = false;
+    menuEnable = false;
+    volumeSet = false;
+    bankMenuEnable = false;
+    bankNetworkUpdate = false;
+    equalizerMenuEnable = false;
+    rcInputDigitsMenuEnable = false;
+    rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
+    rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
+    currentOption = INTERNET_RADIO;
+
+    station_nr = stationFromBuffer;
+    bank_nr = previous_bank_nr;  
+}
+
 //####################################################################################### SETUP ####################################################################################### //
 
 void setup() 
@@ -4836,6 +4856,7 @@ void loop()
         if  ((equalizerMenuEnable == false) && (volumeSet == false)) // jesli nie zapisywalisci equlizer i glonosci to wywolujemy ponizsze funkcje
         {
           changeStation(); 
+          clearFlags(); // Czyscimy wszystkie flagi przebywania w pod menu
           displayRadio();
           u8g2.sendBuffer();
         }
