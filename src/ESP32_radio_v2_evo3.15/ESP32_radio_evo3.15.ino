@@ -788,12 +788,13 @@ void fetchStationsFromServer()
 {
   u8g2.setFont(spleen6x12PL);
   u8g2.clearBuffer();
-  u8g2.setCursor(15,23);
-  //u8g2.print("Bank " + String(bank_nr) + " loading station from:");
-  u8g2.drawStr(21, 10, "Bank:");
-  u8g2.drawStr(51, 10, String(bank_nr).c_str());
-  u8g2.drawStr(21, 23, "Loading station from:");
+  //u8g2.drawStr(21, 10, "Bank:");
+  //u8g2.drawStr(51, 10, String(bank_nr).c_str());
+  //u8g2.drawStr(21, 23, "Loading station from:");
+  u8g2.setCursor(21, 23);
+  u8g2.print("Loading BANK:" + String(bank_nr) + " stations from:");
   u8g2.sendBuffer();
+  
   currentSelection = 0;
   firstVisibleLine = 0;
   station_nr = 1;
@@ -868,8 +869,8 @@ void fetchStationsFromServer()
   {
     Serial.println("Plik banku " + fileName + " już istnieje.");
     u8g2.setFont(spleen6x12PL);
-    u8g2.drawStr(147, 23, "SD card");
-    //u8g2.print("SD card");
+    //u8g2.drawStr(147, 23, "SD card");
+    u8g2.print("SD CARD");
     u8g2.sendBuffer();
     readSDStations();  // Jesli plik istnieje to odczytujemy go tylko z karty
   } 
@@ -878,8 +879,8 @@ void fetchStationsFromServer()
   {
     bankNetworkUpdate = false;
     // stworz plik na karcie tylko jesli on nie istnieje GR
-    u8g2.drawStr(147, 23, "GitHub server");
-    //u8g2.print("GitHub server");
+    //u8g2.drawStr(205, 23, "GitHub server");
+    u8g2.print("GitHub");
     u8g2.sendBuffer();
     {
       // Próba utworzenia pliku, jeśli nie istnieje
@@ -1148,8 +1149,6 @@ void displayRadio()
   if (displayMode == 0)
   {
     u8g2.clearBuffer();
-    //if (encoderFunctionOrder== true) {u8g2.setFont(u8g2_font_fub14_tf);}
-    //if (encoderFunctionOrder== false) {u8g2.setFont(DotMatrix13pl);}
     u8g2.setFont(u8g2_font_fub14_tf);
     stationName = stationName.substring(0, 23);
     u8g2.drawStr(24, 16, stationName.c_str());
@@ -1157,13 +1156,12 @@ void displayRadio()
     
     // Funkcja wyswietlania numeru Banku na dole ekranu
     u8g2.setFont(spleen6x12PL);
-    char BankStr[8];  //Formatowanie informacji o Banku do postaci Bank 00
-    snprintf(BankStr, sizeof(BankStr), "Bank%02d", bank_nr);
-
+    char BankStr[8];  
+    snprintf(BankStr, sizeof(BankStr), "Bank%02d", bank_nr); // Formatujemy numer banku do postacji 00
     // Wyswietlamy numer Banku w dolnej linijce
     u8g2.drawBox(154, 54, 1, 12);  // dorysowujemy 1px pasek przed napisem "Bank" dla symetrii
     u8g2.setDrawColor(0);
-    u8g2.setCursor(155, 63);  //160 pozycja napisu Bank0x na dole ekranu
+    u8g2.setCursor(155, 63);  // Pozycja napisu Bank0x na dole ekranu
     u8g2.print(BankStr);
 
 
@@ -1253,16 +1251,76 @@ void displayRadio()
     //Liczymy długość napisu stationStringScrollWidth 
     stationStringScrollWidth = stationStringScroll.length() * 6;
   }
+  else if (displayMode == 2) // Tryb wświetlania mode 3
+  {
+    u8g2.clearBuffer();
+    u8g2.setFont(spleen6x12PL);
+    stationName = stationName.substring(0, 23);
+    u8g2.drawStr(24, 16, stationName.c_str());
+    u8g2.drawRBox(1, 1, 18, 13, 4);  // Rbox pod numerem stacji
+    
+    // Funkcja wyswietlania numeru Banku na dole ekranu
+    char BankStr[8];  
+    snprintf(BankStr, sizeof(BankStr), "Bank%02d", bank_nr); // Formatujemy numer banku do postacji 00
+    // Wyswietlamy numer Banku w dolnej linijce
+    u8g2.drawBox(154, 54, 1, 12);  // dorysowujemy 1px pasek przed napisem "Bank" dla symetrii
+    u8g2.setDrawColor(0);
+    u8g2.setCursor(155, 63);  // Pozycja napisu Bank0x na dole ekranu
+    u8g2.print(BankStr);
+
+
+    u8g2.setDrawColor(0);
+    //u8g2.setFont(u8g2_font_spleen8x16_mr);
+    char StationNrStr[3];
+    snprintf(StationNrStr, sizeof(StationNrStr), "%02d", station_nr);  //Formatowanie informacji o stacji i banku do postaci 00
+    u8g2.setCursor(4, 14);                                            // Pozycja numeru stacji na gorze po lewej ekranu
+    u8g2.print(StationNrStr);
+    u8g2.setDrawColor(1);
+             
+    // Jesli stacja nie nadaje stationString to podmieniamy pusty stationString na nazwę staji - stationNameStream
+    if (stationString == "") // Jeżeli stationString jest pusty i stacja go nie nadaje
+    {    
+      if (stationNameStream == "") // jezeli nie ma równiez stationName
+      { 
+        stationStringScroll = "---" ;
+      } // wstawiamy trzy kreseczki do wyswietlenia
+      else // jezeli jest station name to prawiamy w "-- NAZWA --" i wysylamy do scrollera
+      { 
+        stationStringScroll = ("-- " + stationNameStream + " --");
+      }  // Zmienna stationStringScroller przyjmuje wartość stationNameStream
+    }
+    else // Jezeli stationString zawiera dane to przypisujemy go do stationStringScroll do funkcji scrollera
+    {
+      processText(stationString);  // przetwarzamy polsie znaki
+      stationStringScroll = stationString + "      "; // dodajemy separator do przewijanego tekstu
+    }
+       
+    //Liczymy długość napisu stationStringScroll 
+    stationStringScrollWidth = stationStringScroll.length() * 6;
+
+    u8g2.drawLine(0, 52, 255, 52);
+    
+    // Przeliczamy Hz na kHz
+    int SampleRate = sampleRateString.toInt();
+    int SampleRateRest = SampleRate % 1000;
+    SampleRateRest = SampleRateRest / 100;
+    SampleRate = SampleRate / 1000;
+        
+    String displayString = String(SampleRate) + "." + String(SampleRateRest) + "kHz " + bitsPerSampleString + "bit " + bitrateString + "kbps";
+    u8g2.drawStr(0, 63, displayString.c_str());
+  }
 }
 
-void audio_info(const char *info) {
+void audio_info(const char *info) 
+{
   // Wyświetl informacje w konsoli szeregowej
   Serial.print("info        ");
   Serial.println(info);
   // Znajdź pozycję "BitRate:" w tekście
   int bitrateIndex = String(info).indexOf("BitRate:");
   bitratePresent = false;
-  if (bitrateIndex != -1) {
+  if (bitrateIndex != -1) 
+  {
     // Przytnij tekst od pozycji "BitRate:" do końca linii
     bitrateString = String(info).substring(bitrateIndex + 8, String(info).indexOf('\n', bitrateIndex));
     bitrateStringInt = bitrateString.toInt();  // przliczenie bps na Kbps
@@ -1275,6 +1333,8 @@ void audio_info(const char *info) {
     }
     if (currentOption == INTERNET_RADIO) {
     //  displayRadio();
+    //screenRefresh = true;
+    audioShowStreamtitleRefresh = true;
     }
   }
 
@@ -2419,7 +2479,8 @@ void changeStation()
   {
    firstVisibleLine = currentSelection - 3;
   }
-  screenRefresh = true;
+  //screenRefresh = true;
+
   //screenRefreshTime = millis();
 }
 
@@ -5047,7 +5108,7 @@ void loop()
       {
         screenRefresh = false;
         screenRefreshCount = 0;
-        //displayRadio();
+        displayRadio();
         //u8g2.sendBuffer(); 
       }
 
