@@ -229,6 +229,7 @@ bool ActionNeedUpdateTime = false; // Zmiena okresaljaca dla displayRadio potrze
 bool debugAudioBuffor = false;     // Wyswietlanie bufora Audio
 bool screenRefresh = false;         // Dodatkowe odswiezanie ekranu, właczone przy pierwszym uruchomieniu
 bool audioShowStreamtitleRefresh = false;
+bool audioInfoRefresh = false;
 
 bool vuMeterOnFlacStations = true;
 
@@ -1334,7 +1335,8 @@ void audio_info(const char *info)
     if (currentOption == INTERNET_RADIO) {
     //  displayRadio();
     //screenRefresh = true;
-    audioShowStreamtitleRefresh = true;
+    //audioShowStreamtitleRefresh = true;
+    audioInfoRefresh = true;
     }
   }
 
@@ -5089,9 +5091,10 @@ void loop()
     Serial.println(" DWORD");
   }
 
-  if (audioShowStreamtitleRefresh == true) // Zmiana stream title - wymaga odswiezenia displayRadio
+  if ((audioShowStreamtitleRefresh == true) || (audioInfoRefresh == true))// Zmiana stream title lub info bit rate, czestotliwość itd - wymaga odswiezenia displayRadio
   { 
     audioShowStreamtitleRefresh = false;
+    audioInfoRefresh = false;
     displayRadio(); // Streamtitle wymaga odswiezenia
   }
 
@@ -5108,7 +5111,7 @@ void loop()
       {
         screenRefresh = false;
         screenRefreshCount = 0;
-        displayRadio();
+        //displayRadio();
         //u8g2.sendBuffer(); 
       }
 
