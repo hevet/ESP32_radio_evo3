@@ -1,0 +1,2 @@
+175x80mm 2 Layers,Thickness:1.6 mm, Finished copper:1,Surface finish:HASL with lead
+Tools T1 =0.6mm, T2=0.65mm, T3=1.0mm, T4=1.0mm. T5=1.25mm. T6=1.5mm, T7=2.54mm. T8=3.3mm. 
