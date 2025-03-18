@@ -362,7 +362,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   <p style="font-size: 1.6rem;"><span id="textStationName"><b> %STATIONNAMEVALUE%</b></span></p>
   
   <p>Volume: <span id="textSliderValue">%SLIDERVALUE%</span></p>
-  <p><input type="range" onchange="updateSliderVolume(this)" id="volumeSlider" min="0" max="21" value="%SLIDERVALUE%" step="1" class="slider"></p>
+  <p><input type="range" onchange="updateSliderVolume(this)" id="volumeSlider" min="1" max="21" value="%SLIDERVALUE%" step="1" class="slider"></p>
 
   <p>Bank selection:</p>
   
@@ -3660,7 +3660,7 @@ void volumeDisplay()
   timeDisplay = false;
   displayActive = true;
   volumeSet = true;
-  volumeMute = false;
+  //volumeMute = false;
   Serial.print("Wartość głośności: ");
   Serial.println(volumeValue);
   audio.setVolume(volumeValue);  // zakres 0...21
@@ -3670,6 +3670,7 @@ void volumeDisplay()
   u8g2.setFont(u8g2_font_fub14_tf);
   u8g2.drawStr(65, 33, "VOLUME");
   u8g2.drawStr(163, 33, volumeValueStr.c_str());
+
   u8g2.drawRFrame(21, 42, 214, 14, 3);             // Rysujmey ramke dla progress bara głosnosci
   u8g2.drawRBox(23, 44, volumeValue * 10, 10, 2);  // Progress bar głosnosci
   u8g2.sendBuffer();
@@ -4022,6 +4023,19 @@ void audioProcessing(void *p)
   }
 }
 
+void handlePreOtaUpdateCallback()
+{
+  Update.onProgress([](unsigned int progress, unsigned int total) 
+  {
+    u8g2.setCursor(1,56); u8g2.printf("Update: %u%%\r", (progress / (total / 100)) );
+    //progress = progres / (total / 100) ;
+    u8g2.setCursor(80,56); u8g2.print(String(progress) + "/" + String(total));
+    u8g2.sendBuffer();
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+}
+
+
 void recoveryModeCheck()
 {
   if (digitalRead(SW_PIN2) == 0)
@@ -4123,24 +4137,34 @@ void recoveryModeCheck()
     }   
   } 
 }
-
-void handlePreOtaUpdateCallback()
-{
-  Update.onProgress([](unsigned int progress, unsigned int total) 
-  {
-    u8g2.setCursor(1,56); u8g2.printf("Update: %u%%\r", (progress / (total / 100)) );
-    //progress = progres / (total / 100) ;
-    u8g2.setCursor(80,56); u8g2.print(String(progress) + "/" + String(total));
-    u8g2.sendBuffer();
-    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
-  });
-}
-
 void displayDimmer(bool dimmerON)
 {
   if ((dimmerON == 1) && (displayBrightness == 15) && (displayAutoDimmerOn == true)) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
   if (dimmerON == 0) { u8g2.sendF("ca", 0xC7, displayBrightness); displayDimmerTimeCounter = 0;}
 }
+
+void clearFlags()  // Kasuje wszystkie flagi przebywania w menu, funkcjach itd. Pozwala pwrócic do wyswietlania ekranu głownego
+{
+    displayDimmer(0);
+    displayActive = false;
+    timeDisplay = true;
+    listedStations = false;
+    menuEnable = false;
+    volumeSet = false;
+    bankMenuEnable = false;
+    bankNetworkUpdate = false;
+    equalizerMenuEnable = false;
+    rcInputDigitsMenuEnable = false;
+    rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
+    rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
+    currentOption = INTERNET_RADIO;
+
+    station_nr = stationFromBuffer;
+    bank_nr = previous_bank_nr;  
+}
+
+
+
 
 void displayDimmerTimer()
 {
@@ -4696,25 +4720,7 @@ void readConfig()
   configFile.close();  // Zamykamy plik po odczycie kodow pilota
 }
 
-void clearFlags()  // Kasuje wszystkie flagi przebywania w menu, funkcjach itd. Pozwala pwrócic do wyswietlania ekranu głownego
-{
-    displayDimmer(0);
-    displayActive = false;
-    timeDisplay = true;
-    listedStations = false;
-    menuEnable = false;
-    volumeSet = false;
-    bankMenuEnable = false;
-    bankNetworkUpdate = false;
-    equalizerMenuEnable = false;
-    rcInputDigitsMenuEnable = false;
-    rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
-    rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
-    currentOption = INTERNET_RADIO;
 
-    station_nr = stationFromBuffer;
-    bank_nr = previous_bank_nr;  
-}
 
 void readPSRAMstations()  // Funkcja testowa-debug, do odczytu PSRAMu, nie uzywana przez inne funkcje
 {
@@ -5170,8 +5176,13 @@ void setup()
         inputMessage1 = request->getParam(PARAM_INPUT_1)->value();
         sliderValue = inputMessage1;
         volumeValue = sliderValue.toInt();
+        
+        if (volumeValue < 1) 
+        { volumeMute = true;}
+        else if (volumeValue > 0) 
+        {volumeMute = false;}
         audio.setVolume(volumeValue);
-        volumeDisplay(); 
+        volumeDisplay();
       }
       else if (request->hasParam(PARAM_INPUT_2)) 
       {
@@ -5819,7 +5830,7 @@ void loop()
       u8g2.setDrawColor(1);
     } 
     
-    if (vuMeterOn == true && displayActive == false && displayMode == 0)  //&& (flac == false) jesli właczone sa wskazniki VU to rysujemy, dla stacji FLAC wyłaczamy aby nie bylo cieci w streamie
+    if (vuMeterOn == true && displayActive == false && displayMode == 0 && volumeMute == false)  //&& (flac == false) jesli właczone sa wskazniki VU to rysujemy, dla stacji FLAC wyłaczamy aby nie bylo cieci w streamie
     {
       vuMeter();
     }
