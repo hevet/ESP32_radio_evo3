@@ -1,21 +1,24 @@
-// ESP32 Radio Evo3
+// ###############################################################################################
+// ESP32 Radio Evo3 - Interent Radio Player
+// Support OLED SSD1322 dipslay and PCB5102A DAC
+// ###############################################################################################
+// Robgold 2025
 // Source -> https://github.com/dzikakuna/ESP32_radio_evo3/tree/main/src/ESP32_radio_v2_evo3.15
 // Based on project https://github.com/sarunia/ESP32_radio_player_v2
 
 
-#include "Arduino.h"      // Standardowy nagłówek Arduino, który dostarcza podstawowe funkcje i definicje
-#include "Audio.h"        // Biblioteka do obsługi funkcji związanych z dźwiękiem i audio
-#include "SPI.h"          // Biblioteka do obsługi komunikacji SPI
-#include "SD.h"           // Biblioteka do obsługi kart SD
-#include "FS.h"           // Biblioteka do obsługi systemu plików
-#include <U8g2lib.h>      // Biblioteka do obsługi wyświetlaczy
-#include <ezButton.h>     // Biblioteka do obsługi enkodera z przyciskiem
-#include <HTTPClient.h>   // Biblioteka do wykonywania żądań HTTP, umożliwia komunikację z serwerami przez protokół HTTP
-#include <Ticker.h>       // Mechanizm tickera do odświeżania timera 1s, pomocny do cyklicznych akcji w pętli głównej
-#include <WiFiManager.h>  // Biblioteka do zarządzania konfiguracją sieci WiFi, opis jak ustawić połączenie WiFi przy pierwszym uruchomieniu jest opisany tu: https://github.com/tzapu/WiFiManager
-//#include <WiFi.h>
+#include "Arduino.h"        // Standardowy nagłówek Arduino, który dostarcza podstawowe funkcje i definicje
+#include "Audio.h"          // Biblioteka do obsługi funkcji związanych z dźwiękiem i audio
+#include "SPI.h"            // Biblioteka do obsługi komunikacji SPI
+#include "SD.h"             // Biblioteka do obsługi kart SD
+#include "FS.h"             // Biblioteka do obsługi systemu plików
+#include <U8g2lib.h>        // Biblioteka do obsługi wyświetlaczy
+#include <ezButton.h>       // Biblioteka do obsługi enkodera z przyciskiem
+#include <HTTPClient.h>     // Biblioteka do wykonywania żądań HTTP, umożliwia komunikację z serwerami przez protokół HTTP
+#include <Ticker.h>         // Mechanizm tickera do odświeżania timera 1s, pomocny do cyklicznych akcji w pętli głównej
+#include <WiFiManager.h>    // Biblioteka do zarządzania konfiguracją sieci WiFi, opis jak ustawić połączenie WiFi przy pierwszym uruchomieniu jest opisany tu: https://github.com/tzapu/WiFiManager
 #include <EEPROM.h>
-//#include <ArduinoJson.h>          // Biblioteka do parsowania i tworzenia danych w formacie JSON, użyteczna do pracy z API
+//#include <ArduinoJson.h> // Biblioteka do parsowania i tworzenia danych w formacie JSON, użyteczna do pracy z API
 #include <Time.h>  // Biblioteka do obsługi funkcji związanych z czasem, np. odczytu daty i godziny
 #include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
@@ -24,7 +27,7 @@
 // #include "Wire.h"
 // #include "I2CKeyPad8x8.h"
 
-
+// deklaracja wersji oprogramowania i nazwy hosta widocznego w routerach 
 #define softwareRev "v3.16"    // Wersja oprogramowania radia
 #define hostname "ESP32-Radio" // Definicja nazwy hosta widoczna na zewnątrz
 
@@ -63,9 +66,11 @@
 // IR odbiornik podczerwieni 
 #define recv_pin 15
 
-#define MAX_STATIONS 99        // Maksymalna liczba stacji radiowych, które mogą być przechowywane w jednym banku
+// definicja dlugosci ilosci stacji w banku, dlugosci nazwy stacji w PSRAM/EEPROM, maksymalnej ilosci plikow audio (odtwarzacz)
+#define MAX_STATIONS 99          // Maksymalna liczba stacji radiowych, które mogą być przechowywane w jednym banku
 #define STATION_NAME_LENGTH 200  // Nazwa stacji wraz z bankiem i numerem stacji do wyświetlenia w pierwszej linii na ekranie
-#define MAX_FILES 100           // Maksymalna liczba plików lub katalogów w tablicy directoriesz
+#define MAX_FILES 100            // Maksymalna liczba plików lub katalogów w tablicy directoriesz
+
 
 #define STATIONS_URL1 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank01.txt"   // Adres URL do pliku z listą stacji radiowych
 #define STATIONS_URL2 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank02.txt"   // Adres URL do pliku z listą stacji radiowych
@@ -116,6 +121,9 @@
 #define rcCmdKey8       0xB908  // Przycisk "8"
 #define rcCmdKey9       0xB909  // Przycisk "9"
 
+
+// zmienne typu Flaga naśladujące pilota - obecnie nieużywane
+
 bool cmdVolumeUp = false;    // Flaga Głosnosc +
 bool cmdVolumeDown = false;  // Flaga  Głośnosc -
 bool cmdArrowRight = false;// Flaga strzałka w prawo - nastepna stacja
@@ -158,7 +166,6 @@ int CLK_state1;                        // Aktualny stan CLK enkodera prawego
 int prev_CLK_state1;                   // Poprzedni stan CLK enkodera prawego
 int CLK_state2;                        // Aktualny stan CLK enkodera lewego
 int prev_CLK_state2;                   // Poprzedni stan CLK enkodera lewego
-//int counter = 0;                       // Licznik dla przycisków
 int stationsCount = 0;                 // Aktualna liczba przechowywanych stacji w tablicy
 int directoryCount = 0;                // Licznik katalogów
 int fileIndex = 0;                     // Numer aktualnie wybranego pliku audio ze wskazanego folderu
@@ -168,7 +175,6 @@ int folderFromBuffer = 0;              // Numer aktualnie wybranego folderu do p
 int totalFilesInFolder = 0;            // Zmienna przechowująca łączną liczbę plików w folderze
 uint8_t volumeValue = 10;                  // Wartość głośności, domyślnie ustawiona na 10
 uint8_t volumeBufferValue = 0;             // Wartość głośności, domyślnie ustawiona na 10
-//int cycle = 0;                         // Numer cyklu do danych pogodowych wyświetlanych w trzech rzutach co 10 sekund
 int maxVisibleLines = 4;               // Maksymalna liczba widocznych linii na ekranie OLED
 int bitrateStringInt = 0;              // Deklaracja zmiennej do konwersji Bitrate string na wartosc Int aby podzelic bitrate przez 1000
 int buttonLongPressTime1 = 2000;       // Czas reakcji na długie nacisniecie enkoder 1
@@ -181,7 +187,7 @@ uint8_t displayDimmerTimeCounter = 0;  // Zmienna inkrementowana w przerwaniu ti
 uint8_t dimmerDisplayBrightness = 4;   // Wartość przyciemnienia wyswietlacza po czasie niekatywnosci
 uint8_t displayBrightness = 15;        // Domyślna maksymalna janość wyswietlacza
 uint16_t displayAutoDimmerTime = 10;   // Czas po jakim nastąpi przyciemninie wyswietlacza, liczony w sekundach
-bool displayAutoDimmerOn = true;       // Automatyczne przyciemnianie wyswietlacza, domyślnie włączone
+bool displayAutoDimmerOn = false;       // Automatyczne przyciemnianie wyswietlacza, domyślnie włączone
 
 uint8_t displayMode = 0;               // Tryb wyswietlacza 0-displayRadio / 1-Zegar
 
@@ -221,8 +227,6 @@ bool menuEnable = false;          // Flaga określająca czy na ekranie można w
 bool bankMenuEnable = false;      // Flaga określająca czy na ekranie jest wyświetlone menu wyboru banku
 bool bitratePresent = false;      // Flaga określająca, czy na serial terminalu pojawiła się informacja o bitrate - jako ostatnia dana spływajaca z info
 bool bankNetworkUpdate = false;   // Flaga wyboru aktualizacji banku z sieci lub karty SD - True aktulizacja z NETu
-bool bank1NetworkUpdate = false;  // Flaga wyboru aktualizacji banku z sieci lub karty SD - True aktulizacja z NETu
-bool bank2NetworkUpdate = false;  // Flaga wyboru aktualizacji banku z sieci lub karty SD
 bool volumeMute = false;          // Flaga okreslająca stan funkcji wyciszczenia - Mute
 
 
@@ -333,32 +337,43 @@ const char* PARAM_INPUT_4 = "url";
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
+  <link rel='icon' href='/favicon.ico' type='image/x-icon'>
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon.png">
+
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ESP32 Web Radio</title>
   <style>
     html {font-family: Arial; display: inline-block; text-align: center;}
     h2 {font-size: 2.3rem;}
-    p {font-size: 1.2rem;}
-    table, td, th {font-size: 0.8rem; border: 1px solid black; border-collapse: collapse;}
+    p {font-size: 1.1rem;}
+    table {border: 1px solid black; border-collapse: collapse; margin: 0px 0px;}
+    td, th {font-size: 0.8rem; border: 1px solid gray; border-collapse: collapse;}
     td:hover {font-weight:bold;}
     a {color: black; text-decoration: none;}
-    body {max-width: 380px; margin:0px auto; padding-bottom: 25px;}
+    body {max-width: 1380px; margin:0px auto; padding-bottom: 25px;}
     .slider {-webkit-appearance: none; margin: 14px; width: 330px; height: 10px; background: #4CAF50; outline: none; -webkit-transition: .2s; transition: opacity .2s; border-radius: 5px;}
-    .slider::-webkit-slider-thumb {-webkit-appearance: none; appearance: none; width: 35px; height: 35px; background: #4a4a4a; cursor: pointer; border-radius: 5px;}
+    .slider::-webkit-slider-thumb {-webkit-appearance: none; appearance: none; width: 35px; height: 25px; background: #4a4a4a; cursor: pointer; border-radius: 5px;}
     .slider::-moz-range-thumb { width: 35px; height: 35px; background: #4a4a4a; cursor: pointer; border-radius: 5px;} 
     .button { background-color: #4CAF50; border: 1; color: white; padding: 10px 20px; border-radius: 5px;}
-    .buttonBank { background-color: #4CAF50; border: 1; color: white; padding: 8px 8px; border-radius: 5px; width: 35px; height: 35px;}
-    .buttonBankSelected { background-color: #505050; border: 1; color: white; padding: 8px 8px; border-radius: 5px; width: 35px; height: 35px;}
+    .buttonBank { background-color: #4CAF50; border: 1; color: white; padding: 8px 8px; border-radius: 5px; width: 35px; height: 35px; margin: 0 1.5px;}
+    .buttonBankSelected { background-color: #505050; border: 1; color: white; padding: 8px 8px; border-radius: 5px; width: 35px; height: 35px; margin: 0 1.5px;}
     .buttonBank:active {background-color: #4a4a4a box-shadow: 0 4px #666; transform: translateY(2px);}
     .buttonBank:hover {background-color: #4a4a4a;}
     .button:hover {background-color: #4a4a4a;}
     .button:active {background-color: #4a4a4a; box-shadow: 0 4px #666; transform: translateY(2px);}
+    .column { align: center; padding: 5px; display: flex; justify-content: space-between;}
+    .stationList {text-align:left; margin-top: 0px; width: 280px; margin-bottom:0px;cursor: pointer;}
+	  .stationNumberList {text-align:center; margin-top: 0px; width: 35px; margin-bottom:0px;}
+	  .stationListSelected {text-align:left; margin-top: 0px; width: 280px; margin-bottom:0px;cursor: pointer; background-color: #4CAF50;}
+	  .stationNumberListSelected {text-align:center; margin-top: 0px; width: 35px; margin-bottom:0px; background-color: #4CAF50;}
   </style>
 </head>
 
 <body>
   <h2>ESP32 Web Radio</h2>
-  <p style="font-size: 0.8rem;">Station: %STATIONNUMBER%   Bank: %BANKVALUE%</p>
+  <p style="font-size: 1rem;">Station:%STATIONNUMBER%   Bank:%BANKVALUE%</p>
   <p style="font-size: 1.6rem;"><span id="textStationName"><b> %STATIONNAMEVALUE%</b></span></p>
   
   <p>Volume: <span id="textSliderValue">%SLIDERVALUE%</span></p>
@@ -4629,8 +4644,8 @@ void saveConfig()
 	  {
 		  //myFile.print << "display auto dimmer on / automatyczne przyciemnianie wyswietlacza =" << displayAutoDimmerOn << '\n';
       myFile.println("#### ESP32 Radio Config File ####");
-      myFile.print("display auto dimmer on  ="); myFile.print(displayAutoDimmerOn); myFile.println(";");
-      myFile.print("display auto dimmer timer  ="); myFile.print(displayAutoDimmerTime); myFile.println(";");
+      myFile.print("display auto dimmer on =");    myFile.print(displayAutoDimmerOn); myFile.println(";");
+      myFile.print("display auto dimmer timer ="); myFile.print(displayAutoDimmerTime); myFile.println(";");
 		  myFile.println("display auto dimmer timer String =" + String(displayAutoDimmerTime) + ";");
 	    myFile.close();
       Serial.println("Aktualizacja config.txt na karcie SD.");
@@ -4821,7 +4836,7 @@ void webUrlStationPlay()
 }
 
 
-void stationBankListHtml()
+void stationBankListHtmlMobile()
 {
   html = "";
   html += "<p>";
@@ -4838,14 +4853,11 @@ void stationBankListHtml()
     }
     if (i == 8) {html+= "</p><p>";}
   }
-  
   html += "</p>";
   html += "<center>"; 
-  //html += "<p style=\"font-size: 0.8rem;\">Bank:" + String(bank_nr) + " station list:</p>";
-  html += "<div class=\"column\"><table>";
-  html += "<tr><th colspan=\"2\" align=\"left\">Bank " + String(bank_nr) + " stations:</th></tr>";
-  //html += "<tr><th>No</th><th>Station</th></tr>";
-  
+ 
+  html += "<table>";
+  //html += "<tr><th colspan=\"2\" align=\"left\">Bank " + String(bank_nr) + " stations:</th></tr>";
   
 
   for (int i = 0; i < stationsCount; i++) 
@@ -4862,23 +4874,95 @@ void stationBankListHtml()
     
     if (i + 1 == station_nr)
     {             
-      html += "<td><p style=\"text-align:center; margin-top: 3px; margin-bottom:3px; width: 35px; background-color: #4CAF50;\"><b>" + String(i + 1) + "</b></p></td>";
-      html += "<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px;  background-color: #4CAF50; width: 280px; cursor: pointer;\" onClick=\"stationLoad('" + String(i + 1) +  "');\"><b> " + String(station).substring(0, 25) + "</b></p></td>";
+      html += "<td><p class='stationNumberListSelected'><b>" + String(i + 1) + "</b></p></td>";
+      html += "<td><p class='stationListSelected' onClick=\"stationLoad('" + String(i + 1) +  "');\"><b> " + String(station).substring(0, 25) + "</b></p></td>";
     }
     else
     {
-      html += "<td><p style=\"text-align:center; margin-top: 3px; width: 35px; margin-bottom:3px\">" + String(i + 1) + "</p></td>";
-      html += "<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px; width: 280px; cursor: pointer; \" onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, 25) + "</p></td>";
+      html += "<td><p class='stationNumberList'>" + String(i + 1) + "</p></td>";
+      html += "<td><p class='stationList' onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, 25) + "</p></td>";
     }
     
     html += "</tr>" + String("\n");
           
   }
   html += "</table></div>";
-  html += "<p style=\"font-size: 0.8rem;\">Firmware Evo " + String(softwareRev) + "</p>";
+  html += "<p style=\"font-size: 0.8rem;\">Web Radio, mobile, Evo: " + String(softwareRev) + "</p>";
   html += "</center></body></html>";
-  html = String(index_html) + html;
 }
+
+void stationBankListHtmlPC()
+{
+  html = "";
+  html += "<p>";
+  for (int i = 1; i < 17; i++)
+  {
+    
+    if (i == bank_nr)
+    {
+      html+= "<button class=\"buttonBankSelected\" onClick=\"bankLoad('" + String(i) + "');\" id=\"Bank\" )>" + String(i) + "</button>" + String("\n");
+    }
+    else
+    {
+      html+= "<button class=\"buttonBank\" onClick=\"bankLoad('" + String(i) + "');\" id=\"Bank\" )>" + String(i) + "</button>" + String("\n");
+    }
+  }
+  
+  html += "</p>";
+  html += "<center>" + String("\n");
+  html += "<div class=\"column\">" + String("\n");
+  for (int i = 0; i < MAX_STATIONS; i++) 
+  //for (int i = 0; i < stationsCount; i++) 
+  {
+    char station[STATION_NAME_LENGTH + 1];  // Tablica na nazwę stacji o maksymalnej długości zdefiniowanej przez STATION_NAME_LENGTH
+    memset(station, 0, sizeof(station));    // Wyczyszczenie tablicy zerami przed zapisaniem danych
+
+    int length = psramData[i * (STATION_NAME_LENGTH + 1)];
+    for (int j = 0; j < min(length, STATION_NAME_LENGTH); j++) 
+    {
+      station[j] = psramData[i * (STATION_NAME_LENGTH + 1) + 1 + j];  // Odczytaj znak po znaku nazwę stacji
+    }     
+
+    
+    if ((i == 0) || (i == 25) || (i == 50) || (i == 75))
+    { 
+      html += "<table>" + String("\n");
+      //html += "<tr><th>No</th><th>Station</th></tr>" + String("\n");
+    } 
+    
+    // 0-98   >98
+    if (i > stationsCount) { station[0] ='\0'; } // Jesli mamy mniej niz 99 stacji to wypełniamy pozostałe komórki pustymi wartościami
+
+
+    if (i + 1 == station_nr)
+    {             
+      html += "<tr>";
+      html += "<td><p class='stationNumberListSelected'><b>" + String(i + 1) + "</b></p></td>";
+      html += "<td><p class='stationListSelected' onClick=\"stationLoad('" + String(i + 1) +  "');\"><b> " + String(station).substring(0, 25) + "</b></p></td>";
+      html += "</tr>" + String("\n");
+    }
+    else
+    {
+      html += "<tr>";
+      html += "<td><p class='stationNumberList'>" + String(i + 1) + "</p></td>";
+      html += "<td><p class='stationList' onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, 25) + "</p></td>";
+      html += "</tr>" + String("\n");
+    }
+
+    if ((i == 24) || (i == 49) || (i == 74)) //||(i == 98))
+    { 
+      html += "</table>" + String("\n");
+    }
+           
+  }
+
+  html += "</table>" + String("\n");
+  html += "</div>" + String("\n");
+  html += "<p style=\"font-size: 0.8rem;\">Web Radio, desktop, Evo: " + String(softwareRev) + "</p>" + String("\n");
+  html += "</center></body></html>"; 
+
+}
+
 
 //####################################################################################### SETUP ####################################################################################### //
 
@@ -5072,65 +5156,33 @@ void setup()
     // ########################################### WEB Server ######################################################
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
     {
-      stationBankListHtml();
+      String userAgent = request->header("User-Agent");
+      
+      if (userAgent.indexOf("Mobile") != -1) // Jestesmy na telefonie 
+      {
+        stationBankListHtmlMobile();
+        html = String(index_html) + html;
+      } 
+      else //Jestemy na komputerze typu desktop
+      {
+        stationBankListHtmlPC();
+        html = String(index_html) + html;  // Składamy cześć stałą html z częscią generowaną dynamicznie
+      }
+      
       request->send_P(200, "text/html", html.c_str(), processor);
     });
 
+    server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request){
+        //request->send(SD, "/favicon.png", "image/x-icon");
+        request->send(SD, "/favicon.ico", "image/x-icon");       
+    });
+
+
     server.on("/page2", HTTP_GET, [](AsyncWebServerRequest *request)
     {
-      html = "";
-      html = "<center>";
-      html += "<div class=\"column\"><table>";
-      html += "<tr><th>No</th><th>Station</th></tr>";
-
-      for (int i = 0; i < stationsCount; i++) 
-      {
-        char station[STATION_NAME_LENGTH + 1];  // Tablica na nazwę stacji o maksymalnej długości zdefiniowanej przez STATION_NAME_LENGTH
-        memset(station, 0, sizeof(station));    // Wyczyszczenie tablicy zerami przed zapisaniem danych
-
-        int length = psramData[i * (STATION_NAME_LENGTH + 1)];
-
-        for (int j = 0; j < min(length, STATION_NAME_LENGTH); j++) 
-        {
-          station[j] = psramData[i * (STATION_NAME_LENGTH + 1) + 1 + j];  // Odczytaj znak po znaku nazwę stacji
-        }
-
-      //  if ((i == 0) || (i == 25) || (i == 50) || (i == 75))
-      //  { 
-      //    html += "<div class=\"column\"><table border = 1>";
-      //    html += "<tr><th>No</th><th>Station</th></tr>";
-      //  }
-
-
-
-        if (i + 1 == station_nr)
-        {             
-          html += "<tr>";  // bold <b> dla obecnie odtwarzanej stacji
-          html += "<td><p style=\"text-align:center; margin-top: 3px; margin-bottom:3px; width: 35px; background-color: #4CAF50;\"><b>" + String(i + 1) + "</b></p></td>";
-          html += "<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px;  background-color: #4CAF50; width: 280px;\" ><b> " + String(station).substring(0, 25) + "</b></p></td>";
-          //html += "<td><a href=\"/update?station=" + String(i + 1) + "\">Play</td>";
-          html += "</tr>" + String("\n");
-        }
-        else
-        {
-          html += "<tr>";
-          html += "<td><p style=\"text-align:center; margin-top: 3px; width: 35px; margin-bottom:3px\">" + String(i + 1) + "</p></td>";
-          html += "<td><p style=\"text-align:left; margin-top: 3px; margin-bottom:3px; width: 280px; cursor: pointer; \" onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, 25) + "</p></td>";
-          //html += "<td><a href=\"/update?station=" + String(i + 1) + "\">Play</td>";
-          html += "</tr>" + String("\n");
-        }
-
-        //if ((i == 24) || (i == 49) || (i == 74) ||(i == 99))
-        //{ 
-        //  html += "</table></div>";
-       // }
-           
-      }
-      html += "</table></div>";
-      html += "<p style=\"font-size: 0.8rem;\">WebRadio Player - Evo: " + String(softwareRev) + "</p>";
-      html += "</center></body></html>";
-      
+      stationBankListHtmlPC();
       html = String(index_html) + html;
+
       request->send_P(200, "text/html", html.c_str(), processor);
     });
 
@@ -5444,15 +5496,9 @@ void loop()
 
       displayDimmer(0); // jesli odbierzemy kod z pilota to wyłaczamy przyciemnienie wyswietlacza OLED
       
-      if (ir_code == rcCmdVolumeUp)      // Przycisk głośniej
-      { 
-        volumeUp();
-      }
-      else if (ir_code == rcCmdVolumeDown) // Przycisk ciszej
-      {  
-        volumeDown();
-      }
-      else if (ir_code == rcCmdArrowRight) 
+      if (ir_code == rcCmdVolumeUp)  { volumeUp(); }         // Przycisk głośniej
+      else if (ir_code == rcCmdVolumeDown) { volumeDown(); } // Przycisk ciszej
+      else if (ir_code == rcCmdArrowRight) // strzałka w prawo - nastepna stacja, bank lub nastawy equalizera
       {  
         if (bankMenuEnable == true)
         {
@@ -5477,16 +5523,13 @@ void loop()
         else
         {
           station_nr++;
-          if (station_nr > stationsCount) 
-          {
-            station_nr = stationsCount;
-          }
-        changeStation();
-        displayRadio();
-        u8g2.sendBuffer();
+          if (station_nr > stationsCount) { station_nr = stationsCount; }
+          changeStation();
+          displayRadio();
+          u8g2.sendBuffer();
         }
       }
-      else if (ir_code == rcCmdArrowLeft) // Przycisk w lewo
+      else if (ir_code == rcCmdArrowLeft) // strzałka w lewo - poprzednia stacja, bank lub nastawy equalizera
       {  
         if (bankMenuEnable == true)
         {
@@ -5526,18 +5569,13 @@ void loop()
       }
       else if ((ir_code == rcCmdArrowUp) && (currentOption == INTERNET_RADIO) && (volumeSet == false) && (equalizerMenuEnable == false))// Przycisk w góre
       {  
-        //Serial.println("debug--IR strzalka w gore");
         timeDisplay = false;
         displayActive = true;
         displayStartTime = millis();
         station_nr = currentSelection + 1;
         station_nr--;
-        if (station_nr < 1) 
-        {
-          station_nr = stationsCount;//1;
-        }
-        //Serial.print("Numer stacji do tyłu: ");
-        //Serial.println(station_nr);
+        if (station_nr < 1) { station_nr = stationsCount; } // jesli dojdziemy do początku listy stacji to przewijamy na koniec
+        
         scrollUp(); 
         displayStations();
       }
@@ -5569,24 +5607,17 @@ void loop()
         if (bankMenuEnable == true)
         {
           station_nr = 1;
-          fetchStationsFromServer();
+          fetchStationsFromServer(); // Ładujemy stacje z karty lub serwera 
           bankMenuEnable = false;
         }
-        
-        if  (equalizerMenuEnable == true)
-        {
-          saveEqualizerOnSD();
-          //equalizerMenuEnable = false;
-        }
-        if (volumeSet == true)
-        {
-          saveVolumeOnSD();  
-          
-        }
-        if  ((equalizerMenuEnable == false) && (volumeSet == false)) // jesli nie zapisywalisci equlizer i glonosci to wywolujemy ponizsze funkcje
+        else if (equalizerMenuEnable == true) { saveEqualizerOnSD();}    // zapis ustawien equalizera
+        //if (volumeSet == true) { saveVolumeOnSD();}                 // zapis ustawien głośnosci
+        //if ((equalizerMenuEnable == false) && (volumeSet == false)) // jesli nie zapisywaliśmy equlizer i glonosci to wywolujemy ponizsze funkcje
+        //if ((equalizerMenuEnable == false)) // jesli nie zapisywaliśmy equlizer 
+        else
         {
           changeStation(); 
-          clearFlags(); // Czyscimy wszystkie flagi przebywania w pod menu
+          clearFlags();                                             // Czyscimy wszystkie flagi przebywania w różnych menu
           displayRadio();
           u8g2.sendBuffer();
         }
@@ -5606,6 +5637,8 @@ void loop()
       else if (ir_code == rcCmdBack) 
       {  
         // Zerujemy wszystkie flagi
+        clearFlags();
+        /*
         displayActive = false;
         timeDisplay = true;
         listedStations = false;
@@ -5621,7 +5654,8 @@ void loop()
 
         station_nr = stationFromBuffer;
         bank_nr = previous_bank_nr;
-        screenRefresh = true;
+        */
+        //screenRefresh = true;
 
         displayRadio();
         u8g2.sendBuffer();
@@ -5640,30 +5674,28 @@ void loop()
         displayRadio();
       }
       else if (ir_code == rcCmdGreen) 
-        {
+      {
          
-         u8g2.sendF("ca", 0xc1, 0xff);
+        //u8g2.sendF("ca", 0xc1, 0xff);
+        //u8g2.sendF("caaaaaaaaaaaaaaa", 0xb8, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4);
 
-         //u8g2.sendF("caaaaaaaaaaaaaaa", 0xb8, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4);
-
-         //saveEEPROM();
-         //displayConfig();
+        //saveEEPROM();
+        //displayConfig();
          
-         //readPSRAMstations();
+        //readPSRAMstations();
          
-         //saveConfig();
-         //Serial.println("#### ODCZYT ####");
-         //readConfig();
+        //saveConfig();
+        //Serial.println("#### ODCZYT ####");
+        //readConfig();
                  
-         //displayRadio();
-         //u8g2.sendBuffer();
-         
-         
-         //readRcStoredCodes(rcPage); // Sprawdzenie komend pilota - funkcja testowa
-         //rcPage++;
-         //if (rcPage > 2) {rcPage = 0;}
-        }
+        //displayRadio();
+        //u8g2.sendBuffer();
         //vuMeterMode = !vuMeterMode;} // Zmiana trybu VU meter z przerywanych kresek na ciągłe paski
+         
+        //readRcStoredCodes(rcPage); // Sprawdzenie komend pilota - funkcja testowa
+        //rcPage++;
+        //if (rcPage > 2) {rcPage = 0;}
+      }
       else if (ir_code == rcCmdDirect) // Przycisk Direct -> Menu Bank - udpate GitHub, Menu Equalizer - reset wartosci, Radio Display - fnkcja przyciemniania ekranu
       {
         if ((bankMenuEnable == true) && (equalizerMenuEnable == false))// flage można zmienic tylko bedąc w menu wyboru banku
