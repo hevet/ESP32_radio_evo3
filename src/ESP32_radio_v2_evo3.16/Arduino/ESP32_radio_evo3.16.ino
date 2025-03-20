@@ -4931,7 +4931,7 @@ void stationBankListHtmlPC()
     } 
     
     // 0-98   >98
-    if (i > stationsCount) { station[0] ='\0'; } // Jesli mamy mniej niz 99 stacji to wypełniamy pozostałe komórki pustymi wartościami
+    if (i >= stationsCount) { station[0] ='\0'; } // Jesli mamy mniej niz 99 stacji to wypełniamy pozostałe komórki pustymi wartościami
 
 
     if (i + 1 == station_nr)
@@ -5609,12 +5609,11 @@ void loop()
           station_nr = 1;
           fetchStationsFromServer(); // Ładujemy stacje z karty lub serwera 
           bankMenuEnable = false;
-        }
-        else if (equalizerMenuEnable == true) { saveEqualizerOnSD();}    // zapis ustawien equalizera
-        //if (volumeSet == true) { saveVolumeOnSD();}                 // zapis ustawien głośnosci
+        }  
+        if (equalizerMenuEnable == true) { saveEqualizerOnSD();}    // zapis ustawien equalizera
+        //if (volumeSet == true) { saveVolumeOnSD();}                 // zapis ustawien głośnosci po nacisnięciu OK, wyłaczony aby można było przełączyć stacje na www bez czekania
         //if ((equalizerMenuEnable == false) && (volumeSet == false)) // jesli nie zapisywaliśmy equlizer i glonosci to wywolujemy ponizsze funkcje
-        //if ((equalizerMenuEnable == false)) // jesli nie zapisywaliśmy equlizer 
-        else
+        if ((equalizerMenuEnable == false)) // jesli nie zapisywaliśmy equlizer 
         {
           changeStation(); 
           clearFlags();                                             // Czyscimy wszystkie flagi przebywania w różnych menu
