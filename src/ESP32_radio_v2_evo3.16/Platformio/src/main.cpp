@@ -181,6 +181,7 @@ int buttonLongPressTime1 = 2000;       // Czas reakcji na długie nacisniecie en
 int buttonLongPressTime2 = 2000;       // Czas reakcji na długie nacisniecie enkoder 2
 int buttonShortPressTime2 = 500;       // Czas rekacjinna krótkie nacisniecie enkodera 2
 int buttonSuperLongPressTime2 = 4000;  // Czas reakcji na super długie nacisniecie enkoder 2
+uint8_t stationNameLenghtCut = 24;    // 24-> 25 znakow, 25-> 26 znaków, zmienna określająca jak długa nazwę na nazwa stacji w plikach Bankow liczone od 0- wartosci ustalonej
 
 // ---- Auto dimmer / auto przyciemnianie wyswietlacza ---- //
 uint8_t displayDimmerTimeCounter = 0;  // Zmienna inkrementowana w przerwaniu timera2 do przycimniania wyswietlacz
@@ -433,7 +434,7 @@ String processor(const String& var)
 {
   //Serial.println(var);
   if (var == "SLIDERVALUE") {return String(volumeValue);}
-  if (var == "STATIONNAMEVALUE") {return String(stationName.substring(0, 26));}
+  if (var == "STATIONNAMEVALUE") {return String(stationName.substring(0, stationNameLenghtCut));}
   if (var == "BANKVALUE") {return String(bank_nr);}
   if (var == "STATIONNUMBER") {return String(station_nr);}
   return String();
@@ -1300,8 +1301,9 @@ void displayRadio()
   {
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_fub14_tf);
-    stationName = stationName.substring(0, 23);
-    u8g2.drawStr(24, 16, stationName.c_str());
+    //stationName = stationName.substring(0, stationNameLenghtCut - 1);
+    //u8g2.drawStr(24, 16, stationName.c_str());
+    u8g2.drawStr(24, 16, stationName.substring(0, stationNameLenghtCut - 1).c_str());
     u8g2.drawRBox(1, 1, 21, 16, 4);  // Rbox pod numerem stacji
     
     // Funkcja wyswietlania numeru Banku na dole ekranu
@@ -1374,7 +1376,7 @@ void displayRadio()
 
     char StationNrStr[3];
     snprintf(StationNrStr, sizeof(StationNrStr), "%02d", station_nr); 
-    //stationName = stationName.substring(0, 26);
+    //stationName = stationName.substring(0, 25);
     int StationNameEnd = stationName.indexOf("  "); // Wycinamy nazwe stacji tylko do miejsca podwojnej spacji 
     stationName = stationName.substring(0, StationNameEnd);
  
@@ -1404,15 +1406,16 @@ void displayRadio()
   else if (displayMode == 2) // Tryb wświetlania mode 3
   {
     u8g2.clearBuffer();
-    //u8g2.setFont(u8g2_font_fub14_tf);
     u8g2.setFont(spleen6x12PL);
-    stationName = stationName.substring(0, 26);
-    u8g2.drawStr(24, 11, stationName.c_str());
+    //stationName = stationName.substring(0, stationNameLenghtCut);
+    //u8g2.drawStr(24, 11, stationName.c_str());
+    u8g2.drawStr(24, 11, stationName.substring(0, stationNameLenghtCut).c_str()); // Przyciecie i wyswietlenie dzieki temu nie zmieniamy zawartosci zmiennej stationName
     u8g2.drawRBox(1, 1, 18, 13, 4);  // Rbox pod numerem stacji
     
     // Funkcja wyswietlania numeru Banku na dole ekranu
     char BankStr[8];  
     snprintf(BankStr, sizeof(BankStr), "Bank%02d", bank_nr); // Formatujemy numer banku do postacji 00
+
     // Wyswietlamy numer Banku w dolnej linijce
     u8g2.drawBox(154, 54, 1, 12);  // dorysowujemy 1px pasek przed napisem "Bank" dla symetrii
     u8g2.setDrawColor(0);
@@ -1421,7 +1424,6 @@ void displayRadio()
 
 
     u8g2.setDrawColor(0);
-    //u8g2.setFont(u8g2_font_spleen8x16_mr);
     char StationNrStr[3];
     snprintf(StationNrStr, sizeof(StationNrStr), "%02d", station_nr);  //Formatowanie informacji o stacji i banku do postaci 00
     u8g2.setCursor(4, 11);                                            // Pozycja numeru stacji na gorze po lewej ekranu
@@ -1435,7 +1437,7 @@ void displayRadio()
       { 
         stationStringScroll = "---" ;
       } // wstawiamy trzy kreseczki do wyswietlenia
-      else // jezeli jest station name to prawiamy w "-- NAZWA --" i wysylamy do scrollera
+      else // jezeli jest station name to oprawiamy w "-- NAZWA --" i wysylamy do scrollera
       { 
         stationStringScroll = ("-- " + stationNameStream + " --");
       }  // Zmienna stationStringScroller przyjmuje wartość stationNameStream
@@ -1445,11 +1447,6 @@ void displayRadio()
       processText(stationString);  // przetwarzamy polsie znaki
       stationStringScroll = stationString;
     }
-
-    
-
-    
-
 
     u8g2.drawLine(0, 52, 255, 52);
     
@@ -2633,7 +2630,7 @@ void changeStation2()
     Serial.println(stationUrl);
     
     u8g2.setFont(spleen6x12PL);  // wypisujemy jaki stream jakie stacji jest ładowany
-    u8g2.drawStr(34, 55, String(stationName.substring(0, 23)).c_str());
+    u8g2.drawStr(34, 55, String(stationName.substring(0, stationNameLenghtCut)).c_str());
     u8g2.sendBuffer();
     
     // Połącz z daną stacją
@@ -2726,7 +2723,7 @@ void changeStation()
     Serial.println(stationUrl);
     
     u8g2.setFont(spleen6x12PL);  // wypisujemy jaki stream jakie stacji jest ładowany
-    u8g2.drawStr(34, 55, String(stationName.substring(0, 23)).c_str());
+    u8g2.drawStr(34, 55, String(stationName.substring(0, stationNameLenghtCut)).c_str());
     u8g2.sendBuffer();
     
     // Połącz z daną stacją
@@ -4664,12 +4661,12 @@ void stationBankListHtmlMobile()
     if (i + 1 == station_nr)
     {             
       html += "<td><p class='stationNumberListSelected'><b>" + String(i + 1) + "</b></p></td>";
-      html += "<td><p class='stationListSelected' onClick=\"stationLoad('" + String(i + 1) +  "');\"><b> " + String(station).substring(0, 25) + "</b></p></td>";
+      html += "<td><p class='stationListSelected' onClick=\"stationLoad('" + String(i + 1) +  "');\"><b> " + String(station).substring(0, stationNameLenghtCut) + "</b></p></td>";
     }
     else
     {
       html += "<td><p class='stationNumberList'>" + String(i + 1) + "</p></td>";
-      html += "<td><p class='stationList' onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, 25) + "</p></td>";
+      html += "<td><p class='stationList' onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, stationNameLenghtCut) + "</p></td>";
     }
     
     html += "</tr>" + String("\n");
@@ -4727,14 +4724,14 @@ void stationBankListHtmlPC()
     {             
       html += "<tr>";
       html += "<td><p class='stationNumberListSelected'><b>" + String(i + 1) + "</b></p></td>";
-      html += "<td><p class='stationListSelected' onClick=\"stationLoad('" + String(i + 1) +  "');\"><b> " + String(station).substring(0, 25) + "</b></p></td>";
+      html += "<td><p class='stationListSelected' onClick=\"stationLoad('" + String(i + 1) +  "');\"><b> " + String(station).substring(0, stationNameLenghtCut) + "</b></p></td>";
       html += "</tr>" + String("\n");
     }
     else
     {
       html += "<tr>";
       html += "<td><p class='stationNumberList'>" + String(i + 1) + "</p></td>";
-      html += "<td><p class='stationList' onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, 25) + "</p></td>";
+      html += "<td><p class='stationList' onClick=\"stationLoad('" + String(i + 1) +  "');\">" + String(station).substring(0, stationNameLenghtCut) + "</p></td>";
       html += "</tr>" + String("\n");
     }
 
