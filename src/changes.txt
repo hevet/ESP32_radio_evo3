@@ -1,11 +1,16 @@
 Changes tracking file for ESP Radio EVO version
 
+3.17
+- OTA Update directly from web page
+- SD card content browser over the web page
+- IR codes stored on SD card in remote.txt file
+- Voice prompt of the time (PL and EN function avaliable)
+- Sub-revisioning system add (3.17.xx)
+
 3.16
 - This is first version that can work without SD CARD
 - In case of lack of SD card, station number, bank number, volume value are stored in EEPROM
-- New Async Web server with new WWW protal
-- corrected definition of encoders
-
+- Recover mode (update, reset bank value, reset station number value)
 
 3.15
 - Add 3-point equlizer with values soterd on sd card
