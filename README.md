@@ -56,31 +56,31 @@ For Platformio look into src folder -> Platformio folder and Platformio.ini file
 ## Software Dependencies
 
 [ESP Supressif libs]
-WiFi 3.0.7 
-Networking 3.0.7 
-NetworkClientSecure 3.0.7
-SD 3.0.7 
-FS 3.0.7 
-SPI 3.0.7
-SD_MMC 3.0.7
-SPIFFS w wersji 3.0.7
-HTTPClient w wersji 3.0.7
-FFat w wersji 3.0.7
-Update w wersji 3.0.7
-WebServer w wersji 3.0.7
-DNSServer w wersji 3.0.7
-ESP32 Async UDP w wersji 3.0.7
-EEPROM w wersji 3.0.7
-Wire 3.0.7
-Ticker 3.0.7
+- WiFi 3.0.7 
+- Networking 3.0.7 
+- NetworkClientSecure 3.0.7
+- SD 3.0.7 
+- FS 3.0.7 
+- SPI 3.0.7
+- SD_MMC 3.0.7
+- SPIFFS w wersji 3.0.7
+- HTTPClient w wersji 3.0.7
+- FFat w wersji 3.0.7
+- Update w wersji 3.0.7
+- WebServer w wersji 3.0.7
+- DNSServer w wersji 3.0.7
+- ESP32 Async UDP w wersji 3.0.7
+- EEPROM w wersji 3.0.7
+- Wire 3.0.7
+- Ticker 3.0.7
 
 [3rd-party libs]
-ESP32-audioI2S-master 3.0.13
-U8g2 2.36.5
-ezButton 1.0.4
-WiFiManager w wersji 2.0.17
-ESP Async WebServer w wersji 3.6.0
-Async TCP 3.3.2 
+- ESP32-audioI2S-master 3.0.13
+- U8g2 2.36.5
+- ezButton 1.0.4
+- WiFiManager w wersji 2.0.17
+- ESP Async WebServer w wersji 3.6.0
+- Async TCP 3.3.2 
 
 ## Usage
 Radio can be build only with ESP32-S3 dev. module and PCM5102A. In this configartion last station, memory bank number and volume will be stored in EEPROM. Control is possible via web page or IR remote control RC-406.
