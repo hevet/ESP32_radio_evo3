@@ -6,6 +6,7 @@ Changes tracking file for ESP Radio EVO version
 - IR codes stored on SD card in remote.txt file
 - Voice prompt of the time (PL and EN function avaliable)
 - Sub-revisioning system add (3.17.xx)
+- ADC Keyboard config web page added
 
 3.16
 - This is first version that can work without SD CARD

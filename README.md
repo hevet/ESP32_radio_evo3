@@ -105,5 +105,5 @@ This project is open-source and licensed under the [MIT License](https://opensou
 
 ## Others
 
-This project was inspired by https://github.com/sarunia/ESP32_radio_player_v2
-More informations you can read here: https://www.elektroda.pl/rtvforum/topic4041603.html
+- This project was inspired by https://github.com/sarunia/ESP32_radio_player_v2
+- More informations you can read here: https://www.elektroda.pl/rtvforum/topic4041603.html
