@@ -21,8 +21,8 @@
 #include <AsyncTCP.h>          // Bliblioteka TCP dla serwera web
 #include <Update.h>            // Blibioteka dla aktulizacji OTA
 
-// Deklaracja wersji oprogramowania i nazwy hosta widocznego w routerze oraz na ekranie OLED i stronie WWW
-#define softwareRev "v3.17.36"  // Wersja oprogramowania radia
+// Deklaracja wersji oprogramowania i nazwy hosta widocznego w routerze oraz na ekranie OLED i stronie www
+#define softwareRev "v3.17.52"  // Wersja oprogramowania radia
 #define hostname "ESP32-Radio"  // Definicja nazwy hosta widoczna na zewnątrz
 
 // Definicja pinow czytnika karty SD
@@ -142,6 +142,7 @@ uint8_t dimmerDisplayBrightness = 4;   // Wartość przyciemnienia wyswietlacza 
 uint8_t displayBrightness = 15;        // Domyślna maksymalna janość wyswietlacza
 uint16_t displayAutoDimmerTime = 10;   // Czas po jakim nastąpi przyciemninie wyswietlacza, liczony w sekundach
 bool displayAutoDimmerOn = false;       // Automatyczne przyciemnianie wyswietlacza, domyślnie włączone
+bool displayDimmerActive = false;
 
 uint8_t displayMode = 0;               // Tryb wyswietlacza 0-displayRadio z przewijaniem "scroller" / 1-Zegar / 2- tryb 3 stałych linijek tekstu stacji
 
@@ -161,6 +162,7 @@ uint8_t rcInputDigit2 = 0xFF;      // Druga cyfra w przy wprowadzaniu numeru sta
 uint8_t configArray[16] = { 0 };
 uint8_t rcPage = 0;
 uint16_t configRemoteArray[30] = { 0 };  // Tablica przechowująca kody pilota podczas odczytu z pliku
+uint16_t configAdcArray[20] = { 0 };
 
 
 //const int maxVisibleLines = 5;  // Maksymalna liczba widocznych linii na ekranie OLED
@@ -175,7 +177,7 @@ bool vorbis = false;              // Flaga określająca, czy aktualny plik audi
 bool id3tag = false;              // Flaga określająca, czy plik audio posiada dane ID3
 bool timeDisplay = true;          // Flaga określająca kiedy pokazać czas na wyświetlaczu, domyślnie od razu po starcie
 bool listedStations = false;      // Flaga określająca czy na ekranie jest pokazana lista stacji do wyboru
-bool menuEnable = false;          // Flaga określająca czy na ekranie można wyświetlić menu
+//bool menuEnable = false;          // Flaga określająca czy na ekranie można wyświetlić menu
 bool bankMenuEnable = false;      // Flaga określająca czy na ekranie jest wyświetlone menu wyboru banku
 bool bitratePresent = false;      // Flaga określająca, czy na serial terminalu pojawiła się informacja o bitrate - jako ostatnia dana spływajaca z info
 bool bankNetworkUpdate = false;   // Flaga wyboru aktualizacji banku z sieci lub karty SD - True aktulizacja z NETu
@@ -205,12 +207,16 @@ uint8_t vuMeterL;                          // Wartosc VU dla L kanału zakres 0-
 uint8_t vuMeterR;                          // Wartosc VU dla R kanału zakres 0-255
 
 unsigned long scrollingStationStringTime;  // Czas do odswiezania scorllingu
-unsigned long scrollingRefresh = 65;       // Czas w ms przewijania tekstu i odswiezania VUmetera
+//unsigned long scrollingRefresh = 65;       // Czas w ms przewijania tekstu funkcji Scroller
+uint8_t scrollingRefresh = 65;       // Czas w ms przewijania tekstu funkcji Scroller
 uint16_t stationStringScrollWidth;         // szerokosc Stringu nazwy stacji w funkcji Scrollera
 uint16_t xPositionStationString = 0;       // Pozycja początkowa dla przewijania tekstu StationString
 uint16_t offset;                           // Zminnna offsetu dla funkcji Scrollera - przewijania streamtitle na ekranie OLED
 unsigned char * psramData;                 // zmienna do trzymania danych stacji w pamieci PSRAM
 
+unsigned long vuMeterMilisTimeUpdate;           // Zmienna przechowujaca czas dla funkci millis VU Meter refresh
+//unsigned long vuMeterRefreshTime = 65;           // Czas w ms odswiezania VUmetera
+uint8_t vuMeterRefreshTime = 65;           // Czas w ms odswiezania VUmetera
 
 // ---- Serwer Web ---- //
 unsigned long currentTime = millis();
@@ -416,27 +422,107 @@ const char config_html[] PROGMEM = R"rawliteral(
     body {max-width: 1380px; margin:0 auto; padding-bottom: 25px;}
     .tableSettings {border: 2px solid #4CAF50; border-collapse: collapse; margin: 10px auto; width: 60%;}
   </style>
-</head>
+  </head>
 
 <body>
 <h1>ESP32 Radio - Settings</h1>
-
 <form action="/configupdate" method="POST">
 <table class="tableSettings">
 <tr><th>Setting</th><th>Value</th></tr>
-<tr><td>Display Brightness (0-15)</td><td><input type="number" name="displayBrightness" min="0" max="15" value="%D1"></td></tr>
-<tr><td>Dimmer Display Brightness (0-15)</td><td><input type="number" name="dimmerDisplayBrightness" min="0" max="15" value="%D2"></td></tr>
-<tr><td>Auto Dimmer Time (1-255 sec.)</td><td><input type="number" name="displayAutoDimmerTime" min="1" max="255" value="%D3"></td></tr>
-<tr><td>Auto Dimmer On</td><td><select name="displayAutoDimmerOn"><option value="1"%S1>On</option><option value="0"%S2>Off</option></select></td></tr>
+<tr><td>Normal Display Brightness (0-15)</td><td><input type="number" name="displayBrightness" min="1" max="15" value="%D1"></td></tr>
+<tr><td>Dimmed Display Brightness (0-15)</td><td><input type="number" name="dimmerDisplayBrightness" min="1" max="15" value="%D2"></td></tr>
+<tr><td>Auto Dimmer Delay Time (1-255 sec.)</td><td><input type="number" name="displayAutoDimmerTime" min="1" max="255" value="%D3"></td></tr>
+<tr><td>Auto Dimmer</td><td><select name="displayAutoDimmerOn"><option value="1"%S1>On</option><option value="0"%S2>Off</option></select></td></tr>
 <tr><td>Time Voice Info Every Hour</td><td><select name="timeVoiceInfoEveryHour"><option value="1"%S3>On</option><option value="0"%S4>Off</option></select></td></tr>
 <tr><td>VU Meter Mode (0-1),    0-dashed lines, 1-continuous lines</td><td><input type="number" name="vuMeterMode" min="0" max="1" value="%D4"></td></tr>
 <tr><td>Encoder Function Order (0-1),   0-Volume, click for station list, 1-Station list, click for Volume</td><td><input type="number" name="encoderFunctionOrder" min="0" max="1" value="%D5"></td></tr>
+<tr><td>Display Mode (0-2),   0-Radio scroller, 1-Clock, 2-Three lines without scroll</td><td><input type="number" name="displayMode" min="0" max="2" value="%D6"></td></tr>
+<tr><td>VU Meter Visible (Mode 0 only)</td><td><select name="vuMeterOn"><option value="1" %S5>On</option><option value="0"%S6>Off</option></select></td></tr>
+<tr><td>VU Meter Refresh Time (20-100ms)</td><td><input type="number" name="vuMeterRefreshTime" min="5" max="100" value="%D7"></td></tr>
+<tr><td>Radio Scroller Refresh Time (20-100ms)</td><td><input type="number" name="scrollingRefresh" min="20" max="100" value="%D8"></td></tr>
+<tr><td>ADC Keyboard Enabled</td><td><select name="adcKeyboardEnabled"><option value="1" %S7>On</option><option value="0"%S8>Off</option></select></td></tr>
 </table>
 <input type="submit" value="Update">
 </form>
+<p style='font-size: 0.8rem;'><a href='/'>Go Back</a></p>
 </body>
 </html>
 )rawliteral";
+
+const char adc_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML>
+<html>
+<head>
+  <link rel='icon' href='/favicon.ico' type='image/x-icon'>
+  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon.png">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32 Web Radio</title>
+  <style>
+    html {font-family: Arial; display: inline-block; text-align: center;}
+    h1 {font-size: 2.3rem;}
+    table {border: 1px solid black; border-collapse: collapse; margin: 20px auto; width: 80%;}
+    th, td {font-size: 1rem; border: 1px solid gray; padding: 8px; text-align: left;}
+    td:hover {font-weight: bold;}
+    a {color: black; text-decoration: none;}
+    body {max-width: 1380px; margin:0 auto; padding-bottom: 25px;}
+    .tableSettings {border: 2px solid #4CAF50; border-collapse: collapse; margin: 10px auto; width: 60%;}
+  </style>
+  </head>
+
+<body>
+<h1>ESP32 Radio - ADC Settings</h1>
+<form action="/configadc" method="POST">
+<table class="tableSettings">
+<tr><th>Button</th><th>Value</th></tr>
+<tr><td>keyboardButtonThreshold_0</td><td><input type="number" name="keyboardButtonThreshold_0" min="0" max="4095" value="%D0"></td></tr>
+<tr><td>keyboardButtonThreshold_1</td><td><input type="number" name="keyboardButtonThreshold_1" min="0" max="4095" value="%D1"></td></tr>
+<tr><td>keyboardButtonThreshold_2</td><td><input type="number" name="keyboardButtonThreshold_2" min="0" max="4095" value="%D2"></td></tr>
+<tr><td>keyboardButtonThreshold_3</td><td><input type="number" name="keyboardButtonThreshold_3" min="0" max="4095" value="%D3"></td></tr>
+<tr><td>keyboardButtonThreshold_4</td><td><input type="number" name="keyboardButtonThreshold_4" min="0" max="4095" value="%D4"></td></tr>
+<tr><td>keyboardButtonThreshold_5</td><td><input type="number" name="keyboardButtonThreshold_5" min="0" max="4095" value="%D5"></td></tr>
+<tr><td>keyboardButtonThreshold_6</td><td><input type="number" name="keyboardButtonThreshold_6" min="0" max="4095" value="%D6"></td></tr>
+<tr><td>keyboardButtonThreshold_7</td><td><input type="number" name="keyboardButtonThreshold_7" min="0" max="4095" value="%D7"></td></tr>
+<tr><td>keyboardButtonThreshold_8</td><td><input type="number" name="keyboardButtonThreshold_8" min="0" max="4095" value="%D8"></td></tr>
+<tr><td>keyboardButtonThreshold_9</td><td><input type="number" name="keyboardButtonThreshold_9" min="0" max="4095" value="%D9"></td></tr>
+<tr><td>keyboardButtonThreshold_Shift</td><td><input type="number" name="keyboardButtonThreshold_Shift" min="0" max="4095" value="%D10"></td></tr>
+<tr><td>keyboardButtonThreshold_Memory</td><td><input type="number" name="keyboardButtonThreshold_Memory" min="0" max="4095" value="%D11"></td></tr>
+<tr><td>keyboardButtonThreshold_Band</td><td><input type="number" name="keyboardButtonThreshold_Band" min="0" max="4095" value="%D12"></td></tr>
+<tr><td>keyboardButtonThreshold_Auto</td><td><input type="number" name="keyboardButtonThreshold_Auto" min="0" max="4095" value="%D13"></td></tr>
+<tr><td>keyboardButtonThreshold_Scan</td><td><input type="number" name="keyboardButtonThreshold_Scan" min="0" max="4095" value="%D14"></td></tr>
+<tr><td>keyboardButtonThreshold_Mute</td><td><input type="number" name="keyboardButtonThreshold_Mute" min="0" max="4095" value="%D15"></td></tr>
+<tr><td>keyboardButtonThresholdTolerance</td><td><input type="number" name="keyboardButtonThresholdTolerance" min="0" max="50" value="%D16"></td></tr>
+<tr><td>keyboardButtonNeutral</td><td><input type="number" name="keyboardButtonNeutral" min="0" max="4095" value="%D17"></td></tr>
+<tr><td>keyboardSampleDelay</td><td><input type="number" name="keyboardSampleDelay" min="30" max="300" value="%D18"></td></tr>
+</table>
+<input type="submit" value="ADC Thresholds Update">
+</form>
+<br>
+<button onclick="toggleAdcDebug()">ADC Debug ON/OFF</button>
+<script>
+function toggleAdcDebug() {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/toggleAdcDebug", true);
+    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            alert("ADC Debug is now " + (xhr.responseText === "1" ? "ON" : "OFF"));
+        } else {
+            alert("Error: " + xhr.statusText);
+        }
+    };
+    xhr.send(); // Wysyłanie pustego zapytania POST
+}
+</script>
+
+
+<p style='font-size: 0.8rem;'><a href='/'>Go Back</a></p>
+</body>
+</html>
+)rawliteral";
+
 
 String processor(const String& var)
 {
@@ -760,28 +846,29 @@ unsigned long keyboardSampleDelay = 50;
 
 
 // ---- Progi przełaczania ADC dla klawiatury matrycowej 5x3 w tunrze Sony ST-120 ---- //
-const int keyboardButtonThresholdTolerance = 20; // Tolerancja dla pomiaru ADC
-const int keyboardButtonNeutral = 4095;          // Pozycja neutralna
-const int keyboardButtonThreshold_0 = 2375;      // Przycisk 0
-const int keyboardButtonThreshold_1 = 10;        // Przycisk 1
-const int keyboardButtonThreshold_2 = 545;       // Przycisk 2
-const int keyboardButtonThreshold_3 = 1390;      // Przycisk 3
-const int keyboardButtonThreshold_4 = 1925;      // Przycisk 4
-const int keyboardButtonThreshold_5 = 2285;      // Przycisk 5
-const int keyboardButtonThreshold_6 = 385;       // Przycisk 6
-const int keyboardButtonThreshold_7 = 875;       // Przycisk 7
-const int keyboardButtonThreshold_8 = 1585;      // Przycisk 8
-const int keyboardButtonThreshold_9 = 2055;      // Przycisk 9
-const int keyboardButtonThreshold_Shift = 2455;  // Shift - funkcja Enter/OK
-const int keyboardButtonThreshold_Memory = 2170; // Memory - funkcja Bank menu
-const int keyboardButtonThreshold_Band = 1640;   // Przycisk Band - funkcja Back
-const int keyboardButtonThreshold_Auto = 730;    // Przycisk Auto - przelacza Radio/Zegar
-const int keyboardButtonThreshold_Scan = 1760;   // Przycisk Scan - funkcja Dimmer ekranu OLED
-const int keyboardButtonThreshold_Mute = 1130;   // Przycisk Mute - funkcja MUTE
+int keyboardButtonThresholdTolerance = 20; // Tolerancja dla pomiaru ADC
+int keyboardButtonNeutral = 4095;          // Pozycja neutralna
+int keyboardButtonThreshold_0 = 2375;      // Przycisk 0
+int keyboardButtonThreshold_1 = 10;        // Przycisk 1
+int keyboardButtonThreshold_2 = 545;       // Przycisk 2
+int keyboardButtonThreshold_3 = 1390;      // Przycisk 3
+int keyboardButtonThreshold_4 = 1925;      // Przycisk 4
+int keyboardButtonThreshold_5 = 2285;      // Przycisk 5
+int keyboardButtonThreshold_6 = 385;       // Przycisk 6
+int keyboardButtonThreshold_7 = 875;       // Przycisk 7
+int keyboardButtonThreshold_8 = 1585;      // Przycisk 8
+int keyboardButtonThreshold_9 = 2055;      // Przycisk 9
+int keyboardButtonThreshold_Shift = 2455;  // Shift - funkcja Enter/OK
+int keyboardButtonThreshold_Memory = 2170; // Memory - funkcja Bank menu
+int keyboardButtonThreshold_Band = 1640;   // Przycisk Band - funkcja Back
+int keyboardButtonThreshold_Auto = 730;    // Przycisk Auto - przelacza Radio/Zegar
+int keyboardButtonThreshold_Scan = 1760;   // Przycisk Scan - funkcja Dimmer ekranu OLED
+int keyboardButtonThreshold_Mute = 1130;   // Przycisk Mute - funkcja MUTE
 
 // Flagi do monitorowania stanu klawiatury
 bool keyboardButtonPressed = false; // Wcisnięcie klawisza
 bool debugKeyboard = false;         // Wyłącza wywoływanie funkcji i zostawia tylko wydruk pomiaru ADC
+bool adcKeyboardEnabled = false;    // Flaga właczajaca działanie klawiatury ADC
 
 //Funkcja odpowiedzialna za zapisywanie informacji o stacji do pamięci EEPROM.
 void saveStationToPSRAM(const char *station) 
@@ -1484,9 +1571,9 @@ void audio_eof_speech(const char *info) {
   Serial.println(info);
   if (resumePlay == true)
   {
-    ir_code = rcCmdOk; // Przycisk Auto TUning udaje OK
+    ir_code = rcCmdOk; // Przypisujemy kod pilota - OK
     bit_count = 32;
-    calcNec();  // przeliczamy kod pilota na kod oryginalny pełen kod NEC
+    calcNec();        // Przeliczamy kod pilota na pełny kod NEC
     resumePlay = false;
   }
 }
@@ -1586,16 +1673,17 @@ void handleButtons() {
 
       if (millis() - buttonPressTime2 >= buttonLongPressTime2 && millis() - buttonPressTime2 >= buttonSuperLongPressTime2 && action3Taken == false) 
       {
-        encoderFunctionOrderChange();
+        //encoderFunctionOrderChange();
         
-        /*
+        u8g2.setFont(spleen6x12PL);
+        u8g2.clearBuffer();
         displayActive = true;
         displayStartTime = millis();
-
         debugKeyboard = !debugKeyboard;
+        adcKeyboardEnabled = !adcKeyboardEnabled;
         Serial.print("Pomiar wartości ADC ON/OFF:");
         Serial.println(debugKeyboard);
-        */
+        
 
         action3Taken = true;
       }
@@ -2720,6 +2808,12 @@ void handleKeyboard()
 
   if (debugKeyboard == 1) 
   { 
+    displayActive = true;
+    displayStartTime = millis();
+    u8g2.clearBuffer();
+    u8g2.setCursor(10,10); u8g2.print("ADC:   " + String(keyboardValue));
+    u8g2.setCursor(10,23); u8g2.print("BUTTON:" + String(keyboardButtonPressed));
+    u8g2.sendBuffer(); 
     Serial.print("debug - ADC odczyt: ");
     Serial.print(keyboardValue);
     Serial.print(" flaga przycisk wcisniety:");
@@ -3295,45 +3389,53 @@ void recoveryModeCheck()
 }
 void displayDimmer(bool dimmerON)
 {
-  if ((dimmerON == 1) && (displayBrightness == 15) && (displayAutoDimmerOn == true)) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
+  displayDimmerActive = dimmerON;
+  Serial.print("displayDimmerActive: ");
+  Serial.println(displayDimmerActive);
+  //if ((dimmerON == 1) && (displayBrightness == 15)) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
+  if (dimmerON == 1) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
   if (dimmerON == 0) { u8g2.sendF("ca", 0xC7, displayBrightness); displayDimmerTimeCounter = 0;}
 }
-
-void clearFlags()  // Kasuje wszystkie flagi przebywania w menu, funkcjach itd. Pozwala pwrócic do wyswietlania ekranu głownego
-{
-    displayDimmer(0);
-    displayActive = false;
-    timeDisplay = true;
-    listedStations = false;
-    menuEnable = false;
-    volumeSet = false;
-    bankMenuEnable = false;
-    bankNetworkUpdate = false;
-    equalizerMenuEnable = false;
-    rcInputDigitsMenuEnable = false;
-    rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
-    rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
-    currentOption = INTERNET_RADIO;
-
-    station_nr = stationFromBuffer;
-    bank_nr = previous_bank_nr;  
-}
-
 
 void displayDimmerTimer()
 {
   displayDimmerTimeCounter++;
-  if (displayActive == true)
+  
+  if ((displayActive == true) && (displayDimmerActive == true)) // Jezeli wysweitlacz aktywny i jest przyciemniony
   { 
     displayDimmerTimeCounter = 0;
     displayDimmer(0);
   }
-  if (displayDimmerTimeCounter >= displayAutoDimmerTime)
+  // Jesli upłynie czas po którym mamy przyciemnic wyswietlacz i funkcja przyciemniania włączona oraz nie jestemswy w funkcji aktulizacji OTA to
+  if ((displayDimmerTimeCounter >= displayAutoDimmerTime) && (displayAutoDimmerOn == true) && (fwupd == false)) 
   {
-    displayDimmer(1); // wywolujemy funkcje przyciemnienia z parametrem 1 (załacz)
-    displayDimmerTimeCounter = 0;
+    if (displayDimmerActive == false) // jesli wyswietlacz nie jest jeszcze przyciemniony
+    {
+      displayDimmer(1); // wywolujemy funkcje przyciemnienia z parametrem 1 (załacz)
+      displayDimmerTimeCounter = 0;
+    }
   }
 
+}
+
+void clearFlags()  // Kasuje wszystkie flagi przebywania w menu, funkcjach itd. Pozwala pwrócic do wyswietlania ekranu głownego
+{
+  //displayDimmer(0);
+  debugKeyboard = false;
+  //menuEnable = false;
+  displayActive = false;
+  timeDisplay = true;
+  listedStations = false;
+  volumeSet = false;
+  bankMenuEnable = false;
+  bankNetworkUpdate = false;
+  equalizerMenuEnable = false;
+  rcInputDigitsMenuEnable = false;
+  rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
+  rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
+  currentOption = INTERNET_RADIO;
+  station_nr = stationFromBuffer;
+  bank_nr = previous_bank_nr;  
 }
 
 void handleEncoder2StationsVolumeClick()
@@ -3577,7 +3679,8 @@ void handleEncoder2VolumeStationsClick()
       //Serial.println("debug--------------------------------------------------> button 2 PRESSED station list");
     } 
       
-    else if ((listedStations == false) && (bankMenuEnable == true) && (volumeSet == false)) 
+    //else if ((listedStations == false) && (bankMenuEnable == true) && (volumeSet == false)) 
+    else if ((bankMenuEnable == true) && (volumeSet == false)) 
     {
       displayStartTime = millis();
       timeDisplay = false;
@@ -3668,11 +3771,16 @@ void saveConfig()
       myFile.print("Display Brightness =");    myFile.print(displayBrightness); myFile.println(";");
       myFile.print("Dimmer Display Brightness =");    myFile.print(dimmerDisplayBrightness); myFile.println(";");
       myFile.print("Auto Dimmer Time ="); myFile.print(displayAutoDimmerTime); myFile.println(";");
-      myFile.print("Auto Dimmer On ="); myFile.print(displayAutoDimmerOn); myFile.println(";");
-      myFile.println("Voice Info Every Hour On =" + String(timeVoiceInfoEveryHour) + ";");
+      myFile.print("Auto Dimmer ="); myFile.print(displayAutoDimmerOn); myFile.println(";");
+      myFile.println("Voice Info Every Hour =" + String(timeVoiceInfoEveryHour) + ";");
       myFile.println("VU Meter Mode =" + String(vuMeterMode) + ";");
       myFile.println("Encoder Function Order  =" + String(encoderFunctionOrder) + ";");
-	    myFile.close();
+      myFile.println("Startup Display Mode  =" + String(displayMode) + ";");
+      myFile.println("VU Meter On  =" + String(vuMeterOn) + ";");
+	    myFile.println("VU Meter Refresh Time  =" + String(vuMeterRefreshTime) + ";");
+      myFile.println("Scroller Refresh Time =" + String(scrollingRefresh) + ";");
+      myFile.println("ADC Keyboard Enabled =" + String(adcKeyboardEnabled) + ";");
+      myFile.close();
       Serial.println("Aktualizacja config.txt na karcie SD.");
     } 
 	  else 
@@ -3696,7 +3804,12 @@ void saveConfig()
 		  myFile.println("Voice Info Every Hour =" + String(timeVoiceInfoEveryHour) + ";");
       myFile.println("VU Meter Mode =" + String(vuMeterMode) + ";");
       myFile.println("Encoder Function Order  =" + String(encoderFunctionOrder) + ";");
-	    myFile.close();
+      myFile.println("Startup Display Mode  =" + String(displayMode) + ";");
+      myFile.println("VU Meter On  =" + String(vuMeterOn) + ";");
+      myFile.println("VU Meter Refresh Time  =" + String(vuMeterRefreshTime) + ";");
+      myFile.println("Scroller Refresh Time =" + String(scrollingRefresh) + ";");
+      myFile.println("ADC Keyboard Enabled =" + String(adcKeyboardEnabled) + ";");
+      myFile.close();
       Serial.println("Utworzono i zapisano config.txt na karcie SD.");
     } 
 	  else 
@@ -3708,24 +3821,100 @@ void saveConfig()
 
 }
 
+void saveAdcConfig() 
+{
+
+  // Sprawdź, czy plik istnieje
+  if (SD.exists("/adckbd.txt")) 
+  {
+    Serial.println("Plik adckbd.txt już istnieje.");
+
+    // Otwórz plik do zapisu i nadpisz aktualną wartość konfiguracji klawiatury ADC
+    myFile = SD.open("/adckbd.txt", FILE_WRITE);
+    if (myFile) 
+	  {
+      myFile.println("#### ESP32 Radio Config File - ADC Keyboard ####");
+      myFile.println("keyboardButtonThreshold_0 =" + String(keyboardButtonThreshold_0) + ";");
+      myFile.println("keyboardButtonThreshold_1 =" + String(keyboardButtonThreshold_1) + ";");
+      myFile.println("keyboardButtonThreshold_2 =" + String(keyboardButtonThreshold_2) + ";");
+      myFile.println("keyboardButtonThreshold_3 =" + String(keyboardButtonThreshold_3) + ";");
+      myFile.println("keyboardButtonThreshold_4 =" + String(keyboardButtonThreshold_4) + ";");
+      myFile.println("keyboardButtonThreshold_5 =" + String(keyboardButtonThreshold_5) + ";");
+      myFile.println("keyboardButtonThreshold_6 =" + String(keyboardButtonThreshold_6) + ";");
+      myFile.println("keyboardButtonThreshold_7 =" + String(keyboardButtonThreshold_7) + ";");
+      myFile.println("keyboardButtonThreshold_8 =" + String(keyboardButtonThreshold_8) + ";");
+      myFile.println("keyboardButtonThreshold_9 =" + String(keyboardButtonThreshold_9) + ";");
+      myFile.println("keyboardButtonThreshold_Shift =" + String(keyboardButtonThreshold_Shift) + ";");
+      myFile.println("keyboardButtonThreshold_Memory =" + String(keyboardButtonThreshold_Memory) + ";");
+      myFile.println("keyboardButtonThreshold_Band =" + String(keyboardButtonThreshold_Band) + ";");
+      myFile.println("keyboardButtonThreshold_Auto =" + String(keyboardButtonThreshold_Auto) + ";");
+      myFile.println("keyboardButtonThreshold_Scan =" + String(keyboardButtonThreshold_Scan) + ";");
+      myFile.println("keyboardButtonThreshold_Mute =" + String(keyboardButtonThreshold_Mute) + ";");
+      myFile.println("keyboardButtonThresholdTolerance =" + String(keyboardButtonThresholdTolerance) + ";");
+      myFile.println("keyboardButtonNeutral =" + String(keyboardButtonNeutral) + ";");
+      myFile.println("keyboardSampleDelay =" + String(keyboardSampleDelay) + ";");
+      myFile.close();
+      Serial.println("Aktualizacja adckbd.txt na karcie SD.");
+    } 
+	  else 
+	  {
+      Serial.println("Błąd podczas otwierania pliku adckbd.txt.");
+    }
+  } 
+  else 
+  {
+    Serial.println("Plik adckbd.txt nie istnieje. Tworzenie...");
+
+    // Utwórz plik i zapisz w nim aktualne wartości konfiguracji
+    myFile = SD.open("/adckbd.txt", FILE_WRITE);
+    if (myFile) 
+	  {
+      myFile.println("#### ESP32 Radio Config File - ADC Keyboard ####");
+      myFile.println("keyboardButtonThreshold_0 =" + String(keyboardButtonThreshold_0) + ";");
+      myFile.println("keyboardButtonThreshold_1 =" + String(keyboardButtonThreshold_1) + ";");
+      myFile.println("keyboardButtonThreshold_2 =" + String(keyboardButtonThreshold_2) + ";");
+      myFile.println("keyboardButtonThreshold_3 =" + String(keyboardButtonThreshold_3) + ";");
+      myFile.println("keyboardButtonThreshold_4 =" + String(keyboardButtonThreshold_4) + ";");
+      myFile.println("keyboardButtonThreshold_5 =" + String(keyboardButtonThreshold_5) + ";");
+      myFile.println("keyboardButtonThreshold_6 =" + String(keyboardButtonThreshold_6) + ";");
+      myFile.println("keyboardButtonThreshold_7 =" + String(keyboardButtonThreshold_7) + ";");
+      myFile.println("keyboardButtonThreshold_8 =" + String(keyboardButtonThreshold_8) + ";");
+      myFile.println("keyboardButtonThreshold_9 =" + String(keyboardButtonThreshold_9) + ";");
+      myFile.println("keyboardButtonThreshold_Shift =" + String(keyboardButtonThreshold_Shift) + ";");
+      myFile.println("keyboardButtonThreshold_Memory =" + String(keyboardButtonThreshold_Memory) + ";");
+      myFile.println("keyboardButtonThreshold_Band =" + String(keyboardButtonThreshold_Band) + ";");
+      myFile.println("keyboardButtonThreshold_Auto =" + String(keyboardButtonThreshold_Auto) + ";");
+      myFile.println("keyboardButtonThreshold_Scan =" + String(keyboardButtonThreshold_Scan) + ";");
+      myFile.println("keyboardButtonThreshold_Mute =" + String(keyboardButtonThreshold_Mute) + ";");
+      myFile.println("keyboardButtonThresholdTolerance =" + String(keyboardButtonThresholdTolerance) + ";");
+      myFile.println("keyboardButtonNeutral =" + String(keyboardButtonNeutral) + ";");
+      myFile.println("keyboardSampleDelay =" + String(keyboardSampleDelay) + ";");
+      myFile.close();
+      Serial.println("Utworzono i zapisano adckbd.txt na karcie SD.");
+    } 
+	  else 
+	  {
+      Serial.println("Błąd podczas tworzenia pliku adckbd.txt.");
+    }
+  }
+
+
+}
+
 
 void readConfig() 
 {
 
   Serial.println("Odczyt pliku config.txt z karty");
-  
-    // Tworzymy nazwę pliku
-  String fileName = String("/config.txt");
+  String fileName = String("/config.txt"); // Tworzymy nazwę pliku
 
-  // Sprawdzamy, czy plik istnieje
-  if (!SD.exists(fileName)) 
+  if (!SD.exists(fileName))               // Sprawdzamy, czy plik istnieje
   {
     Serial.println("Błąd: Plik nie istnieje.");
     return;
   }
-
-  // Otwieramy plik w trybie do odczytu
-  File configFile = SD.open(fileName, FILE_READ);
+ 
+  File configFile = SD.open(fileName, FILE_READ);// Otwieramy plik w trybie do odczytu
   if (!configFile)  // jesli brak pliku to...
   {
     Serial.println("Błąd: Nie można otworzyć pliku konfiguracji");
@@ -3734,7 +3923,7 @@ void readConfig()
   // Przechodzimy do odpowiedniego wiersza pliku
   int currentLine = 0;
   String configValue = "";
-  while (configFile.available())  // & currentLine <= MAX_STATIONS)
+  while (configFile.available()) 
   {
     String line = configFile.readStringUntil(';'); //('\n');
     
@@ -3753,11 +3942,11 @@ void readConfig()
   Serial.println(currentLine);
   
   //Odczyt kontrolny
-  for (int i = 0; i < 16; i++) 
-  {
-    Serial.print("wartosc: " + String(i) + " z tablicy konfiguracji:");
-    Serial.println(configArray[i]);
-  }
+  //for (int i = 0; i < 16; i++) 
+  //{
+  //  Serial.print("wartosc: " + String(i) + " z tablicy konfiguracji:");
+  //  Serial.println(configArray[i]);
+  //}
 
   configFile.close();  // Zamykamy plik po odczycie kodow pilota
 
@@ -3768,7 +3957,86 @@ void readConfig()
   timeVoiceInfoEveryHour = configArray[4];
   vuMeterMode = configArray[5];
   encoderFunctionOrder = configArray[6];
+  displayMode = configArray[7];
+  vuMeterOn = configArray[8];
+  vuMeterRefreshTime = configArray[9];
+  scrollingRefresh = configArray[10];
+  adcKeyboardEnabled = configArray[11];
 }
+
+
+void readAdcConfig() 
+{
+
+  Serial.println("Odczyt pliku konfiguracji klawiatury ADC adckbd.txt z karty");
+  String fileName = String("/adckbd.txt"); // Tworzymy nazwę pliku
+
+  if (!SD.exists(fileName))               // Sprawdzamy, czy plik istnieje
+  {
+    Serial.println("Błąd: Plik nie istnieje.");
+    return;
+  }
+ 
+  File configFile = SD.open(fileName, FILE_READ);// Otwieramy plik w trybie do odczytu
+  if (!configFile)  // jesli brak pliku to...
+  {
+    Serial.println("Błąd: Nie można otworzyć pliku konfiguracji klawiatury ADC");
+    return;
+  }
+  // Przechodzimy do odpowiedniego wiersza pliku
+  int currentLine = 0;
+  String configValue = "";
+  while (configFile.available()) 
+  {
+    String line = configFile.readStringUntil(';'); //('\n');
+    
+    int lineStart = line.indexOf("=") + 1;  // Szukamy miejsca, gdzie zaczyna wartość zmiennej
+    if ((lineStart != -1)) //&& (currentLine != 0)) // Pomijamy pierwszą linijkę gdzie jest opis pliku
+	  {
+      configValue = line.substring(lineStart);  // Wyciągamy URL od "http"
+      configValue.trim();                      // Usuwamy białe znaki na początku i końcu
+      Serial.print(" Odczytano ustawienie ADC nr.:" + String(currentLine) + " wartosc:");
+      Serial.println(configValue);
+      configAdcArray[currentLine] = configValue.toInt();
+    }
+    currentLine++;
+  }
+  Serial.print("Zamykamy plik config na wartosci currentLine:");
+  Serial.println(currentLine);
+  
+  //Odczyt kontrolny
+  //for (int i = 0; i < 16; i++) 
+  //{
+  //  Serial.print("wartosc poziomu ADC: " + String(i) + " z tablicy:");
+  //  Serial.println(configAdcArray[i]);
+ // }
+
+  configFile.close();  // Zamykamy plik po odczycie kodow pilota
+
+ // ---- Progi przełaczania ADC dla klawiatury matrycowej 5x3 w tunrze Sony ST-120 ---- //
+        // Pozycja neutralna
+  keyboardButtonThreshold_0 = configAdcArray[0];          // Przycisk 0
+  keyboardButtonThreshold_1 = configAdcArray[1];          // Przycisk 1
+  keyboardButtonThreshold_2 = configAdcArray[2];          // Przycisk 2
+  keyboardButtonThreshold_3 = configAdcArray[3];          // Przycisk 3
+  keyboardButtonThreshold_4 = configAdcArray[4];          // Przycisk 4
+  keyboardButtonThreshold_5 = configAdcArray[5];          // Przycisk 5
+  keyboardButtonThreshold_6 = configAdcArray[6];        // Przycisk 6
+  keyboardButtonThreshold_7 = configAdcArray[7];        // Przycisk 7
+  keyboardButtonThreshold_8 = configAdcArray[8];        // Przycisk 8
+  keyboardButtonThreshold_9 = configAdcArray[9];        // Przycisk 9
+  keyboardButtonThreshold_Shift = configAdcArray[10];   // Shift - funkcja Enter/OK
+  keyboardButtonThreshold_Memory = configAdcArray[11];  // Memory - funkcja Bank menu
+  keyboardButtonThreshold_Band = configAdcArray[12];    // Przycisk Band - funkcja Back
+  keyboardButtonThreshold_Auto = configAdcArray[13];    // Przycisk Auto - przelacza Radio/Zegar
+  keyboardButtonThreshold_Scan = configAdcArray[14];    // Przycisk Scan - funkcja Dimmer ekranu OLED
+  keyboardButtonThreshold_Mute = configAdcArray[15];      // Przycisk Mute - funkcja MUTE
+  keyboardButtonThresholdTolerance = configAdcArray[16];  // Tolerancja dla pomiaru ADC
+  keyboardButtonNeutral = configAdcArray[17];             // Pozycja neutralna 
+  keyboardSampleDelay = configAdcArray[18];               // Czas co ile ms odczytywac klawiature
+
+}
+
 
 
 void readPSRAMstations()  // Funkcja testowa-debug, do odczytu PSRAMu, nie uzywana przez inne funkcje
@@ -4361,6 +4629,7 @@ void setup()
   readEqualizerFromSD(); // Odczytujemy ustawienia filtrów equalizera z karty SD 
   readVolumeFromSD();    // Odczytujemy nastawę ostatniego poziomu głośnosci z karty SD /EEPROMu
   readConfig();          // Odczyt konfiguracji
+  readAdcConfig();       // Odczyt konfiguracji klaiwautry ADC
   /*-------------------- RECOVERY MODE --------------------*/
   recoveryModeCheck();
 
@@ -4390,10 +4659,10 @@ void setup()
     u8g2.sendBuffer();
     delay(2000);  // odczekaj 2 sek przed wymazaniem numeru IP
 
-    u8g2.setFont(spleen6x12PL);
-    u8g2.clearBuffer();
-    u8g2.drawStr(10, 25, "Time synchronization...");
-    u8g2.sendBuffer();
+    //u8g2.setFont(spleen6x12PL);
+    //u8g2.clearBuffer();
+    //u8g2.drawStr(10, 25, "Time synchronization...");
+    //u8g2.sendBuffer();
 
     //configTime(gmtOffset_sec, daylightOffset_sec, ntpServer1, ntpServer2 );
     configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", ntpServer1, ntpServer2);
@@ -4457,12 +4726,14 @@ void setup()
 
       request->send(200, "text/html", html);
       //request->send(200, "text/html", "<form method='POST' action='/fwupdate' enctype='multipart/form-data'><input type='file' name='firmware'><input type='submit' value='Update'></form>");
+      
+      audio.stopSong();
       timeDisplay = false;
       displayActive = true;
+      //clearFlags();
       fwupd = true;
       u8g2.clearBuffer();
       u8g2.setFont(spleen6x12PL);     
-      audio.stopSong();
       u8g2.setCursor(5, 12); u8g2.print("ESP-Radio, OTA Firwmare Update");
       u8g2.sendBuffer();
     });
@@ -4519,11 +4790,12 @@ void setup()
       request->send_P(200, "text/html", html.c_str(), processor);
     });
 
+/*
     server.on("/page3", HTTP_ANY, [](AsyncWebServerRequest *request)
     {
       request->send(SD, "/remote.txt", "application/octet-stream", true); //"application/octet-stream");
     });
-/*
+
     server.on("/list", HTTP_GET, [](AsyncWebServerRequest *request) 
     {
         String html = "<html><body><h1>SD card content:</h1><ul>";
@@ -4543,7 +4815,7 @@ void setup()
         
     String html = String(list_html) + String("\n");
     
-    html += "<body><h1>ESP32 Web Radio - SD card:</h1>" + String("\n");
+    html += "<body><h1>ESP32 Radio - SD card:</h1>" + String("\n");
        
     html += "<form action=\"/upload\" method=\"POST\" enctype=\"multipart/form-data\">";
     html += "<input type=\"file\" name=\"file\">";
@@ -4554,7 +4826,7 @@ void setup()
 
     listFiles("/", html);
     html += "</table></div>";
-    html += "<p style='font-size: 0.8rem;'><a href='/'>Back</a></p>" + String("\n"); 
+    html += "<p style='font-size: 0.8rem;'><a href='/'>Go Back</a></p>" + String("\n"); 
     html += "</body></html>";     
     request->send(200, "text/html", html);
     });
@@ -4577,14 +4849,120 @@ void setup()
     html.replace("%D1", String(displayBrightness).c_str());
     html.replace("%D2", String(dimmerDisplayBrightness).c_str());
     html.replace("%D3", String(displayAutoDimmerTime).c_str());
+    html.replace("%D4", String(vuMeterMode).c_str());
+    html.replace("%D5", String(encoderFunctionOrder).c_str());
+    html.replace("%D6", String(displayMode).c_str());
+    html.replace("%D7", String(vuMeterRefreshTime).c_str());
+    html.replace("%D8", String(scrollingRefresh).c_str());
     html.replace("%S1", displayAutoDimmerOn ? " selected" : "");
     html.replace("%S2", displayAutoDimmerOn ? "" : " selected");
     html.replace("%S3", timeVoiceInfoEveryHour ? " selected" : "");
     html.replace("%S4", timeVoiceInfoEveryHour ? "" : " selected");
-    html.replace("%D4", String(vuMeterMode).c_str());
-    html.replace("%D5", String(encoderFunctionOrder).c_str());
+    html.replace("%S5", vuMeterOn ? " selected" : "");
+    html.replace("%S6", vuMeterOn ? "" : " selected");
+    html.replace("%S7", adcKeyboardEnabled ? " selected" : "");
+    html.replace("%S8", adcKeyboardEnabled ? "" : " selected");
+    
+
     request->send(200, "text/html", html);
     });
+
+    server.on("/adc", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String html = String(adc_html);
+    html.replace("%D10", String(keyboardButtonThreshold_Shift).c_str());
+     html.replace("%D11", String(keyboardButtonThreshold_Memory).c_str()); 
+    html.replace("%D12", String(keyboardButtonThreshold_Band).c_str()); 
+    html.replace("%D13", String(keyboardButtonThreshold_Auto).c_str()); 
+    html.replace("%D14", String(keyboardButtonThreshold_Scan).c_str()); 
+    html.replace("%D15", String(keyboardButtonThreshold_Mute).c_str()); 
+    html.replace("%D16", String(keyboardButtonThresholdTolerance).c_str()); 
+    html.replace("%D17", String(keyboardButtonNeutral).c_str());
+    html.replace("%D18", String(keyboardSampleDelay).c_str()); 
+    html.replace("%D0", String(keyboardButtonThreshold_0).c_str()); 
+    html.replace("%D1", String(keyboardButtonThreshold_1).c_str()); 
+    html.replace("%D2", String(keyboardButtonThreshold_2).c_str()); 
+    html.replace("%D3", String(keyboardButtonThreshold_3).c_str()); 
+    html.replace("%D4", String(keyboardButtonThreshold_4).c_str()); 
+    html.replace("%D5", String(keyboardButtonThreshold_5).c_str()); 
+    html.replace("%D6", String(keyboardButtonThreshold_6).c_str()); 
+    html.replace("%D7", String(keyboardButtonThreshold_7).c_str()); 
+    html.replace("%D8", String(keyboardButtonThreshold_8).c_str()); 
+    html.replace("%D9", String(keyboardButtonThreshold_9).c_str()); 
+    //html.replace("%D10", String(keyboardButtonThreshold_Shift).c_str());
+    //Serial.print("keyboardButtonThreshold_Shift: "); Serial.println(String(keyboardButtonThreshold_Shift)); 
+   
+
+    request->send(200, "text/html", html);
+    });
+
+    server.on("/configadc", HTTP_POST, [](AsyncWebServerRequest *request) {
+    
+    if (request->hasParam("keyboardButtonThreshold_Shift", true)) {
+      keyboardButtonThreshold_Shift = request->getParam("keyboardButtonThreshold_Shift", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardButtonThreshold_Memory", true)) {
+      keyboardButtonThreshold_Memory = request->getParam("keyboardButtonThreshold_Memory", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardButtonThreshold_Band", true)) {
+      keyboardButtonThreshold_Band = request->getParam("keyboardButtonThreshold_Band", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardButtonThreshold_Scan", true)) {
+      keyboardButtonThreshold_Scan = request->getParam("keyboardButtonThreshold_Scan", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardButtonThreshold_Mute", true)) {
+      keyboardButtonThreshold_Mute = request->getParam("keyboardButtonThreshold_Mute", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardButtonThresholdTolerance", true)) {
+      keyboardButtonThresholdTolerance = request->getParam("keyboardButtonThresholdTolerance", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardButtonNeutral", true)) {
+      keyboardButtonNeutral = request->getParam("keyboardButtonNeutral", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardSampleDelay", true)) {
+      keyboardSampleDelay = request->getParam("keyboardSampleDelay", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_0", true)) {
+      keyboardButtonThreshold_0 = request->getParam("keyboardButtonThreshold_0", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_1", true)) {
+      keyboardButtonThreshold_1 = request->getParam("keyboardButtonThreshold_1", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_2", true)) {
+      keyboardButtonThreshold_2 = request->getParam("keyboardButtonThreshold_2", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_3", true)) {
+      keyboardButtonThreshold_3 = request->getParam("keyboardButtonThreshold_3", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_4", true)) {
+      keyboardButtonThreshold_4 = request->getParam("keyboardButtonThreshold_4", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_5", true)) {
+      keyboardButtonThreshold_5 = request->getParam("keyboardButtonThreshold_5", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_6", true)) {
+      keyboardButtonThreshold_6 = request->getParam("keyboardButtonThreshold_6", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_7", true)) {
+      keyboardButtonThreshold_7 = request->getParam("keyboardButtonThreshold_7", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_8", true)) {
+      keyboardButtonThreshold_8 = request->getParam("keyboardButtonThreshold_8", true)->value().toInt();
+    } 
+    if (request->hasParam("keyboardButtonThreshold_9", true)) {
+      keyboardButtonThreshold_9 = request->getParam("keyboardButtonThreshold_9", true)->value().toInt();
+    }
+
+    request->send(200, "text/html", "<h1>ADC Keyboard Thresholds Updated!</h1><a href=\"/\">Go Back</a>");
+    
+    saveAdcConfig(); 
+    
+    //ODswiezenie ekranu OLED po zmianach konfiguracji
+    ir_code = rcCmdBack; // Udajemy kod pilota Back
+    bit_count = 32;
+    calcNec();          // Przeliczamy kod pilota na pełny oryginalny kod NEC
+
+    });
+
 
     server.on("/configupdate", HTTP_POST, [](AsyncWebServerRequest *request) {
     if (request->hasParam("displayBrightness", true)) {
@@ -4608,11 +4986,53 @@ void setup()
     if (request->hasParam("encoderFunctionOrder", true)) {
       encoderFunctionOrder = request->getParam("encoderFunctionOrder", true)->value().toInt();
     }
+    if (request->hasParam("displayMode", true)) {
+      displayMode = request->getParam("displayMode", true)->value().toInt();
+    }
+    if (request->hasParam("vuMeterOn", true)) {
+      vuMeterOn = request->getParam("vuMeterOn", true)->value() == "1";
+    }
+    if (request->hasParam("vuMeterRefreshTime", true)) {
+      vuMeterRefreshTime = request->getParam("vuMeterRefreshTime", true)->value().toInt();
+    }
+    if (request->hasParam("scrollingRefresh", true)) {
+      scrollingRefresh = request->getParam("scrollingRefresh", true)->value().toInt();
+    }
+    if (request->hasParam("adcKeyboardEnabled", true)) {
+      adcKeyboardEnabled = request->getParam("adcKeyboardEnabled", true)->value() == "1";
+    }
 
     request->send(200, "text/html", "<h1>Configuration Updated!</h1><a href=\"/\">Go Back</a>");
     saveConfig(); 
+    
+    //ODswiezenie ekranu OLED po zmianach konfiguracji
+    ir_code = rcCmdBack; // Udajemy komendy pilota
+    bit_count = 32;
+    calcNec();  // przeliczamy kod pilota na kod oryginalny pełen kod NEC
 
   });
+
+
+    server.on("/toggleAdcDebug", HTTP_POST, [](AsyncWebServerRequest *request) {
+    // Przełączanie wartości
+    u8g2.clearBuffer();
+    displayActive = true;
+    displayStartTime = millis();
+    debugKeyboard = !debugKeyboard;
+    //adcKeyboardEnabled = !adcKeyboardEnabled;
+    Serial.print("Pomiar wartości ADC ON/OFF:");
+    Serial.println(debugKeyboard);
+    request->send(200, "text/plain", debugKeyboard ? "1" : "0"); // Wysyłanie aktualnej wartości
+    //debugKeyboard = !debugKeyboard;
+    
+    if (debugKeyboard == 0)
+    {
+      ir_code = rcCmdBack; // Przypisujemy kod polecenia z pilota
+      bit_count = 32; // ustawiamy informacje, ze mamy pelen kod NEC do analizy 
+      calcNec();  // przeliczamy kod pilota na kod oryginalny pełen kod NEC  
+    }
+        
+    });
 
     server.on("/view", HTTP_GET, [](AsyncWebServerRequest *request) 
     {
@@ -4892,13 +5312,13 @@ void loop()
   /* -------------- KLAWIATURA --------------*/
   /* Odczyt stanu klawiatura ADC pod GPIO 9 */
   
-//  if (millis() - keyboardLastSampleTime >= keyboardSampleDelay) // Sprawdzenie ADC - klawiatury 
-//  {
-//    keyboardLastSampleTime = millis();
-//    handleKeyboard();
-//  }
+  if ((millis() - keyboardLastSampleTime >= keyboardSampleDelay) && (adcKeyboardEnabled)) // Sprawdzenie ADC - klawiatury 
+  {
+    keyboardLastSampleTime = millis();
+    handleKeyboard();
+  }
   
-  if (displayActive == true) {displayDimmer(0);}  
+  if ((displayActive == true) && (displayDimmerActive == true) && (fwupd == false)) {displayDimmer(0);}  
 
   // Obsługa enkodera 2
   if (encoderFunctionOrder == 0) { handleEncoder2VolumeStationsClick(); } 
@@ -4931,10 +5351,11 @@ void loop()
     }
 
     displayDimmer(0);
+    
     displayActive = false;
     timeDisplay = true;
     listedStations = false;
-    menuEnable = false;
+    //menuEnable = false;
     volumeSet = false;
     bankMenuEnable = false;
     bankNetworkUpdate = false;
@@ -4958,10 +5379,10 @@ void loop()
     if (ir_code != 0) // sprawdzamy czy zmienna ir_code nie jest równa 0
     {
       
-      detachInterrupt(recv_pin); // rozpinay przerwanie
+      detachInterrupt(recv_pin);            // Rozpinamy przerwanie
       Serial.print("Kod NEC OK:");
       Serial.print(ir_code, HEX);
-      ir_code = reverse_bits(ir_code,32);     // rotacja bitów zmiana z LSB-MSB na MSB-LSB
+      ir_code = reverse_bits(ir_code,32);   // Rotacja bitów - zmiana porządku z LSB-MSB na MSB-LSB
       Serial.print("  MSB-LSB: ");
       Serial.print(ir_code, HEX);
     
@@ -4972,9 +5393,10 @@ void loop()
       Serial.print(ADDR, HEX);
       Serial.print(" CMD:");
       Serial.println(CMD, HEX);
-      ir_code = ADDR << 8 | CMD;      // Łączymy ADDR i CMD w jedną zmienną 0xDDRCMD
+      ir_code = ADDR << 8 | CMD;      // Łączymy ADDR i CMD w jedną zmienną 0x ADR CMD
 
-      Serial.print("debug-- puls 9ms:");
+      // Info o przebiegach czasowytch kodu pilota IR
+      Serial.print("debug-- puls 9ms:"); 
       Serial.print(pulse_duration_9ms);
       Serial.print("  4.5ms:");
       Serial.print(pulse_duration_4_5ms);
@@ -4984,8 +5406,8 @@ void loop()
       Serial.println(pulse_duration_560us);
 
 
-      fwupd = false;
-      displayDimmer(0); // jesli odbierzemy kod z pilota to wyłaczamy przyciemnienie wyswietlacza OLED
+      fwupd = false;    // Kasujemy flagę aktulizacji OTA gdyby była ustawiona
+      //displayDimmer(0); // jesli odbierzemy kod z pilota to wyłaczamy przyciemnienie wyswietlacza OLED
       
       if (ir_code == rcCmdVolumeUp)  { volumeUp(); }         // Przycisk głośniej
       else if (ir_code == rcCmdVolumeDown) { volumeDown(); } // Przycisk ciszej
@@ -5128,6 +5550,7 @@ void loop()
       else if (ir_code == rcCmdKey9) {rcInputKey(9);}
       else if (ir_code == rcCmdBack) 
       {  
+        displayDimmer(0);
         clearFlags();   // Zerujemy wszystkie flagi
         displayRadio(); // Ładujemy erkran radia
         u8g2.sendBuffer(); // Wysyłamy bufor na wyswietlacz
@@ -5161,9 +5584,25 @@ void loop()
         }
         if ((bankMenuEnable == false) && (equalizerMenuEnable == false) && (volumeSet == false))
         { 
-          displayBrightness =  displayBrightness + 15;
-          if (displayBrightness > 15){displayBrightness = 0;}
-          u8g2.sendF("ca", 0xC7, displayBrightness);
+          
+          displayDimmer(!displayDimmerActive); // Dimmer OLED
+          Serial.println("Właczono display Dimmer rcCmdDirect");
+          /*
+          if (displayDimmerActive == 1) 
+          {       
+            displayDimmer(0);
+            Serial.println("Właczono display Dimmer 0");
+          }
+          else if (displayDimmerActive == 0) 
+          {       
+            displayDimmer(1);
+            Serial.println("Właczono display Dimmer 1");
+          }
+          */
+
+          //displayBrightness =  displayBrightness + 15;
+          //if (displayBrightness > 15){displayBrightness = 0;}
+          //u8g2.sendF("ca", 0xC7, displayBrightness);
         }
       }      
       else if (ir_code == rcCmdSrc) 
@@ -5284,19 +5723,46 @@ void loop()
     Serial.println(" DWORD");
   }
 
+
+
   if (audioInfoRefresh == true)// Zmiana streamtitle lub info bitrate, czestotliwość - wymaga odswiezenia displayRadio
   { 
     audioInfoRefresh = false;
     displayRadio(); // Streamtitle, bitrate, wymaga odswiezenia
   }
 
+
+  //if ((millis() - vuMeterMilisTimeUpdate > vuMeterRefreshTime) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true)) 
+  //if ((millis() - vuMeterMilisTimeUpdate > vuMeterRefreshTime) && (bankMenuEnable == false) && (listedStations == false) && (timeDisplay == true))
+  if ((millis() - vuMeterMilisTimeUpdate > vuMeterRefreshTime) && (displayActive == false))  
+  {
+    vuMeterMilisTimeUpdate = millis();
+    
+    if ((volumeMute == true) || (volumeValue == 0))   // Obsługa wyciszenia dzwięku, wprowadzamy napis MUTE na ekran
+    {   
+      u8g2.setDrawColor(0);
+      if (displayMode == 0) {u8g2.drawStr(0,48, "> MUTED <");}
+      if (displayMode == 1) {u8g2.drawStr(200,47, "> MUTED <");}
+      u8g2.setDrawColor(1);
+    } 
+
+    //Rysujemy wskaznik VU jesli flaga rysowania aktywna, mute = 0 i tylko trybie displayMode 0
+    if (vuMeterOn == true && displayActive == false && displayMode == 0 && volumeMute == false){vuMeter();}
+    u8g2.sendBuffer();
+
+  }
+
+
   /*---------------------  Odswiezanie VU Meter, Time, Scroller, OLED, WiFi ---------------------*/ 
   
-  if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true)) 
+  //if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true))
+  //if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (listedStations == false) && (timeDisplay == true)) 
+  if ((millis() - scrollingStationStringTime > scrollingRefresh) && (displayActive == false)) 
+  
   {
     scrollingStationStringTime = millis();
   
-    if (ActionNeedUpdateTime == true) // Aktualizacja zegara co 1 sek. + status audio buffora
+    if (ActionNeedUpdateTime == true) // Aktualizacja zegara co 1 sek. + status audio buffora + status wifi
     {
       ActionNeedUpdateTime = false;
       updateTimer();
@@ -5319,29 +5785,18 @@ void loop()
       }
     }
     
-    displayRadioScroller();  // wykonujemy przewijanie tekstu station stringi przygotowujemy bufor ekranu
-    
-    if ((volumeMute == true) || (volumeValue == 0))   // Obsługa wyciszenia dzwięku, wprowadzamy napis MUTE na ekran
-    {   
-      u8g2.setDrawColor(0);
-      if (displayMode == 0) {u8g2.drawStr(0,48, "> MUTED <");}
-      if (displayMode == 1) {u8g2.drawStr(200,47, "> MUTED <");}
-      u8g2.setDrawColor(1);
-    } 
-    
-    //Rysujmey wskaznik VU esli flaga rysowania aktywna, mute = 0 i tylko trybie displayMode 0
-    if (vuMeterOn == true && displayActive == false && displayMode == 0 && volumeMute == false){vuMeter();}
-    
+    displayRadioScroller();  // wykonujemy przewijanie tekstu station stringi przygotowujemy bufor ekranu  
+   
     if (urlToPlay == true) // Jesli web serwer ustawił flagę "odtwarzaj URL" to uruchamiamy funkcje grania z adresu URL wysłanego przez strone WWW
     {
       urlToPlay = false;
       webUrlStationPlay();
       displayRadio();
     }
-
     u8g2.sendBuffer();  // rysujemy całą zawartosc ekranu.
-   
   }
+  
+  
   runTime2 = esp_timer_get_time();
   runTime = runTime2 - runTime1;  
 }

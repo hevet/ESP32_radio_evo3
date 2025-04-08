@@ -102,3 +102,8 @@ STATIONS_URL16 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/
 ## License
 
 This project is open-source and licensed under the [MIT License](https://opensource.org/licenses/MIT). Feel free to contribute and improve the code.
+
+## Others
+
+This project was inspired by https://github.com/sarunia/ESP32_radio_player_v2
+More informations you can read here: https://www.elektroda.pl/rtvforum/topic4041603.html
