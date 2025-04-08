@@ -22,7 +22,7 @@
 #include <Update.h>            // Blibioteka dla aktulizacji OTA
 
 // Deklaracja wersji oprogramowania i nazwy hosta widocznego w routerze oraz na ekranie OLED i stronie www
-#define softwareRev "v3.17.52"  // Wersja oprogramowania radia
+#define softwareRev "v3.17.53"  // Wersja oprogramowania radia
 #define hostname "ESP32-Radio"  // Definicja nazwy hosta widoczna na zewnątrz
 
 // Definicja pinow czytnika karty SD
@@ -463,12 +463,12 @@ const char adc_html[] PROGMEM = R"rawliteral(
   <style>
     html {font-family: Arial; display: inline-block; text-align: center;}
     h1 {font-size: 2.3rem;}
-    table {border: 1px solid black; border-collapse: collapse; margin: 20px auto; width: 80%;}
+    table {border: 1px solid black; border-collapse: collapse; margin: 10px auto; width: 40%;}
     th, td {font-size: 1rem; border: 1px solid gray; padding: 8px; text-align: left;}
     td:hover {font-weight: bold;}
     a {color: black; text-decoration: none;}
-    body {max-width: 1380px; margin:0 auto; padding-bottom: 25px;}
-    .tableSettings {border: 2px solid #4CAF50; border-collapse: collapse; margin: 10px auto; width: 60%;}
+    body {max-width: 1380px; margin:0 auto; padding-bottom: 15px;}
+    .tableSettings {border: 2px solid #4CAF50; border-collapse: collapse; margin: 10px auto; width: 40%;}
   </style>
   </head>
 
@@ -487,15 +487,15 @@ const char adc_html[] PROGMEM = R"rawliteral(
 <tr><td>keyboardButtonThreshold_7</td><td><input type="number" name="keyboardButtonThreshold_7" min="0" max="4095" value="%D7"></td></tr>
 <tr><td>keyboardButtonThreshold_8</td><td><input type="number" name="keyboardButtonThreshold_8" min="0" max="4095" value="%D8"></td></tr>
 <tr><td>keyboardButtonThreshold_9</td><td><input type="number" name="keyboardButtonThreshold_9" min="0" max="4095" value="%D9"></td></tr>
-<tr><td>keyboardButtonThreshold_Shift</td><td><input type="number" name="keyboardButtonThreshold_Shift" min="0" max="4095" value="%D10"></td></tr>
-<tr><td>keyboardButtonThreshold_Memory</td><td><input type="number" name="keyboardButtonThreshold_Memory" min="0" max="4095" value="%D11"></td></tr>
-<tr><td>keyboardButtonThreshold_Band</td><td><input type="number" name="keyboardButtonThreshold_Band" min="0" max="4095" value="%D12"></td></tr>
-<tr><td>keyboardButtonThreshold_Auto</td><td><input type="number" name="keyboardButtonThreshold_Auto" min="0" max="4095" value="%D13"></td></tr>
-<tr><td>keyboardButtonThreshold_Scan</td><td><input type="number" name="keyboardButtonThreshold_Scan" min="0" max="4095" value="%D14"></td></tr>
-<tr><td>keyboardButtonThreshold_Mute</td><td><input type="number" name="keyboardButtonThreshold_Mute" min="0" max="4095" value="%D15"></td></tr>
+<tr><td>keyboardButtonThreshold_Shift - OK/ENTER</td><td><input type="number" name="keyboardButtonThreshold_Shift" min="0" max="4095" value="%D10"></td></tr>
+<tr><td>keyboardButtonThreshold_Memory - BANK MENU</td><td><input type="number" name="keyboardButtonThreshold_Memory" min="0" max="4095" value="%D11"></td></tr>
+<tr><td>keyboardButtonThreshold_Band -  BACK</td><td><input type="number" name="keyboardButtonThreshold_Band" min="0" max="4095" value="%D12"></td></tr>
+<tr><td>keyboardButtonThreshold_Auto -  DISPLAY MODE</td><td><input type="number" name="keyboardButtonThreshold_Auto" min="0" max="4095" value="%D13"></td></tr>
+<tr><td>keyboardButtonThreshold_Scan - DIMMER/NET BANK UPDATE</td><td><input type="number" name="keyboardButtonThreshold_Scan" min="0" max="4095" value="%D14"></td></tr>
+<tr><td>keyboardButtonThreshold_Mute - MUTE</td><td><input type="number" name="keyboardButtonThreshold_Mute" min="0" max="4095" value="%D15"></td></tr>
 <tr><td>keyboardButtonThresholdTolerance</td><td><input type="number" name="keyboardButtonThresholdTolerance" min="0" max="50" value="%D16"></td></tr>
 <tr><td>keyboardButtonNeutral</td><td><input type="number" name="keyboardButtonNeutral" min="0" max="4095" value="%D17"></td></tr>
-<tr><td>keyboardSampleDelay</td><td><input type="number" name="keyboardSampleDelay" min="30" max="300" value="%D18"></td></tr>
+<tr><td>keyboardSampleDelay (30-300ms)</td><td><input type="number" name="keyboardSampleDelay" min="30" max="300" value="%D18"></td></tr>
 </table>
 <input type="submit" value="ADC Thresholds Update">
 </form>
@@ -796,14 +796,6 @@ return reverse_bits(inval >> 1, bits) | ((inval & 1) << bits);
 return 0;
 }
 
-enum MenuOption 
-{
-  PLAY_FILES,      // Odtwarzacz plików
-  INTERNET_RADIO,  // Radio internetowe
-};
-MenuOption currentOption = INTERNET_RADIO;  // Aktualnie wybrana opcja menu (domyślnie radio internetowe)
-
-
 /*---------- Definicja portu i deklaracje zmiennych do obsługi odbiornika IR ----------*/
 
 // Zmienne obsługi  pilota IR
@@ -997,6 +989,7 @@ void readSDStations() {
 void fetchStationsFromServer() 
 {
   bankChange = true;
+  displayActive = true;
   u8g2.setFont(spleen6x12PL);
   u8g2.clearBuffer();
   //u8g2.drawStr(21, 10, "Bank:");
@@ -1434,10 +1427,8 @@ void audio_info(const char *info)
     bitrateString = String(bitrateStringInt);
     bitratePresent = true;
 
-    if (currentOption == INTERNET_RADIO) {
-      //displayRadio();
-     audioInfoRefresh = true;
-    }
+    audioInfoRefresh = true;
+  
   }
 
   // Znajdź pozycję "SampleRate:" w tekście
@@ -1542,8 +1533,7 @@ void audio_showstreamtitle(const char *info) {
   Serial.print("streamtitle ");
   Serial.println(info);
   stationString = String(info);
-  if (currentOption == INTERNET_RADIO) {
-
+  
     ActionNeedUpdateTime = true;
     if ((volumeSet == false) && (bankMenuEnable == false) && (listedStations == false) && (rcInputDigitsMenuEnable == false) && (equalizerMenuEnable == false))
     {
@@ -1552,7 +1542,7 @@ void audio_showstreamtitle(const char *info) {
     //audioShowStreamtitleRefresh = true;
     //displayRadio();
     }
-  }
+ 
 }
 void audio_commercial(const char *info) {
   Serial.print("commercial  ");
@@ -1708,11 +1698,11 @@ void handleButtons() {
 }
 
 int maxSelection() {
-  if (currentOption == INTERNET_RADIO) 
-  {
+  //if (currentOption == INTERNET_RADIO) 
+  //{
     return stationsCount - 1;
-  } 
-  return 0;  // Zwraca 0, jeśli żaden warunek nie jest spełniony
+  //} 
+  //return 0;  // Zwraca 0, jeśli żaden warunek nie jest spełniony
 }
 
 // Funkcja do przewijania w dół
@@ -2358,7 +2348,8 @@ void updateTimer()
     */
 
     //if ((currentOption == INTERNET_RADIO) && ((mp3 == true) || (flac == true) || (aac == true) || (vorbis == true))) 
-    if ((currentOption == INTERNET_RADIO) && (timeDisplay == true) && (audio.isRunning() == true))
+    //if ((currentOption == INTERNET_RADIO) && (timeDisplay == true) && (audio.isRunning() == true))
+    if ((timeDisplay == true) && (audio.isRunning() == true))
     {
       // Struktura przechowująca informacje o czasie
       struct tm timeinfo;
@@ -2438,7 +2429,7 @@ void updateTimer()
 
       //u8g2.sendBuffer(); // nie piszemy po ekranie w tej funkcji tylko przygotowujemy bufor. Nie mozna pisac podczas pracy scrollera
     }
-    else if ((currentOption == INTERNET_RADIO) && (timeDisplay == true) && (audio.isRunning() == false))
+    else if ((timeDisplay == true) && (audio.isRunning() == false))
     {
 
       // Struktura przechowująca informacje o czasie
@@ -3433,7 +3424,6 @@ void clearFlags()  // Kasuje wszystkie flagi przebywania w menu, funkcjach itd. 
   rcInputDigitsMenuEnable = false;
   rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
   rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
-  currentOption = INTERNET_RADIO;
   station_nr = stationFromBuffer;
   bank_nr = previous_bank_nr;  
 }
@@ -3447,7 +3437,7 @@ void handleEncoder2StationsVolumeClick()
     displayActive = true;
     displayStartTime = millis();
 
-    if ((currentOption == INTERNET_RADIO) && (volumeSet == false) && (bankMenuEnable == false))  // Przewijanie listy stacji radiowych
+    if ((volumeSet == false) && (bankMenuEnable == false))  // Przewijanie listy stacji radiowych
     {
       station_nr = currentSelection + 1;
       if (digitalRead(DT_PIN2) == HIGH) 
@@ -3478,7 +3468,7 @@ void handleEncoder2StationsVolumeClick()
     } 
     else 
     {
-      if ((currentOption == INTERNET_RADIO) && (bankMenuEnable == false)) 
+      if (bankMenuEnable == false)
       {
         if (digitalRead(DT_PIN2) == HIGH) // pokrecenie enkoderem 2
         {volumeDown();} 
@@ -3512,7 +3502,7 @@ void handleEncoder2StationsVolumeClick()
   prev_CLK_state2 = CLK_state2;
     
   
-  if ((currentOption == INTERNET_RADIO) && (button2.isReleased()) && (listedStations == true)) 
+  if ((button2.isReleased()) && (listedStations == true)) 
   {
     listedStations = false;
     volumeSet = false;
@@ -3522,7 +3512,7 @@ void handleEncoder2StationsVolumeClick()
     clearFlags();
   }
 
-  if ((currentOption == INTERNET_RADIO) && (button2.isPressed()) && (listedStations == false) && (bankMenuEnable == false)) 
+  if ((button2.isPressed()) && (listedStations == false) && (bankMenuEnable == false)) 
   {
     displayStartTime = millis();
     timeDisplay = false;
@@ -3537,7 +3527,6 @@ void handleEncoder2StationsVolumeClick()
     previous_bank_nr = bank_nr;
 
     station_nr = 1;
-    currentOption = INTERNET_RADIO;
 
     fetchStationsFromServer();
     changeStation();
@@ -3559,7 +3548,7 @@ void handleEncoder2VolumeStationsClick()
     displayActive = true;
     displayStartTime = millis();
 
-    if ((currentOption == INTERNET_RADIO) && (listedStations == false) && (bankMenuEnable == false))  // Przewijanie listy stacji radiowych
+    if ((listedStations == false) && (bankMenuEnable == false))  // Przewijanie listy stacji radiowych
     {
       if (digitalRead(DT_PIN2) == HIGH) 
       {
@@ -3572,7 +3561,7 @@ void handleEncoder2VolumeStationsClick()
     } 
     else 
     {
-      if ((currentOption == INTERNET_RADIO) && (bankMenuEnable == false) && (volumeSet == true)) 
+      if ((bankMenuEnable == false) && (volumeSet == true)) 
       {
         if (digitalRead(DT_PIN2) == HIGH)  // pokrecenie enkoderem 2
         {
@@ -3586,7 +3575,7 @@ void handleEncoder2VolumeStationsClick()
       }
     }
 
-    if ((currentOption == INTERNET_RADIO) && (listedStations == true) && (bankMenuEnable == false)) {
+    if ((listedStations == true) && (bankMenuEnable == false)) {
       station_nr = currentSelection + 1;
       if (digitalRead(DT_PIN2) == HIGH) 
       {
@@ -3629,26 +3618,27 @@ void handleEncoder2VolumeStationsClick()
 
 
 
-  if ((currentOption == INTERNET_RADIO) && (button2.isReleased()) && (encoderButton2 == true))  // jestesmy juz w menu listy stacji to zmieniamy stacje po nacisnieciu przycisku
+  if ((button2.isReleased()) && (encoderButton2 == true))  // jestesmy juz w menu listy stacji to zmieniamy stacje po nacisnieciu przycisku
   {
     encoderButton2 = false;
     //  Serial.println("debug--------------------------------> SET ENCODER button 2 FALSE");
   }
 
 
-  if ((currentOption == INTERNET_RADIO) && (button2.isPressed())) // zmieniamy stację
+  if ((button2.isPressed())) // zmieniamy stację
   {
     if ((encoderButton2 == false) && (listedStations == true) && (bankMenuEnable == false) && (volumeSet == false))  // jestesmy juz w menu listy stacji to zmieniamy stacje po nacisnieciu przycisku
     {
                                             
-      timeDisplay = true;
-      listedStations = false;
-      equalizerMenuEnable = false;    
-      encoderButton2 = true; 
-      
+      //timeDisplay = true;
+      //listedStations = false;
+      //equalizerMenuEnable = false;    
+      encoderButton2 = true;
+            
       u8g2.clearBuffer();
       changeStation();
       displayRadio();
+      clearFlags(); 
       //u8g2.sendBuffer();
       
     }
@@ -3688,7 +3678,6 @@ void handleEncoder2VolumeStationsClick()
       
       previous_bank_nr = bank_nr;
       station_nr = 1;
-      currentOption = INTERNET_RADIO;
 
       listedStations = false;
       volumeSet = false;
@@ -5216,9 +5205,10 @@ void setup()
       {
         inputMessage3 = request->getParam(PARAM_INPUT_3)->value();
         bank_nr = inputMessage3.toInt();
-        station_nr = 1;
         bankMenuEnable = true;        
-        
+        displayStartTime = millis();
+        timeDisplay = false;
+        displayActive = true;
         //bankMenuDisplay();
         fetchStationsFromServer();
         //changeStation();
@@ -5363,7 +5353,6 @@ void loop()
     rcInputDigitsMenuEnable = false;
     rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
     rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
-    currentOption = INTERNET_RADIO;
 
     station_nr = stationFromBuffer;
     bank_nr = previous_bank_nr;
@@ -5474,13 +5463,13 @@ void loop()
           u8g2.sendBuffer();
         }
       }
-      else if ((ir_code == rcCmdArrowUp) && (currentOption == INTERNET_RADIO) && (volumeSet == false) && (equalizerMenuEnable == true))
+      else if ((ir_code == rcCmdArrowUp) && (volumeSet == false) && (equalizerMenuEnable == true))
       {
         toneSelect--;
         if (toneSelect < 1){toneSelect = 1;}
         displayEqualizer();
       }
-      else if ((ir_code == rcCmdArrowUp) && (currentOption == INTERNET_RADIO) && (volumeSet == false) && (equalizerMenuEnable == false))// Przycisk w góre
+      else if ((ir_code == rcCmdArrowUp) && (volumeSet == false) && (equalizerMenuEnable == false))// Przycisk w góre
       {  
         timeDisplay = false;
         displayActive = true;
@@ -5493,13 +5482,13 @@ void loop()
         scrollUp(); 
         displayStations();
       }
-      else if ((ir_code == rcCmdArrowDown) && (currentOption == INTERNET_RADIO) && (volumeSet == false) && (equalizerMenuEnable == true))
+      else if ((ir_code == rcCmdArrowDown) && (volumeSet == false) && (equalizerMenuEnable == true))
       {
         toneSelect++;
         if (toneSelect > 3){toneSelect = 3;}
         displayEqualizer();
       }
-      else if ((ir_code == rcCmdArrowDown) && (currentOption == INTERNET_RADIO) && (volumeSet == false) && (equalizerMenuEnable == false)) // Przycisk w dół
+      else if ((ir_code == rcCmdArrowDown) && (volumeSet == false) && (equalizerMenuEnable == false)) // Przycisk w dół
       {  
         timeDisplay = false;
         displayActive = true;
