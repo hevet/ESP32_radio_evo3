@@ -22,7 +22,7 @@
 #include <Update.h>            // Blibioteka dla aktulizacji OTA
 
 // Deklaracja wersji oprogramowania i nazwy hosta widocznego w routerze oraz na ekranie OLED i stronie www
-#define softwareRev "v3.17.53"  // Wersja oprogramowania radia
+#define softwareRev "v3.17.58"  // Wersja oprogramowania radia
 #define hostname "ESP32-Radio"  // Definicja nazwy hosta widoczna na zewnątrz
 
 // Definicja pinow czytnika karty SD
@@ -138,8 +138,8 @@ bool timeVoiceInfoEveryHour = true;
 
 // ---- Auto dimmer / auto przyciemnianie wyswietlacza ---- //
 uint8_t displayDimmerTimeCounter = 0;  // Zmienna inkrementowana w przerwaniu timera2 do przycimniania wyswietlacz
-uint8_t dimmerDisplayBrightness = 4;   // Wartość przyciemnienia wyswietlacza po czasie niekatywnosci
-uint8_t displayBrightness = 15;        // Domyślna maksymalna janość wyswietlacza
+uint8_t dimmerDisplayBrightness = 10;   // Wartość przyciemnienia wyswietlacza po czasie niekatywnosci
+uint8_t displayBrightness = 250;        // Domyślna maksymalna janość wyswietlacza
 uint16_t displayAutoDimmerTime = 10;   // Czas po jakim nastąpi przyciemninie wyswietlacza, liczony w sekundach
 bool displayAutoDimmerOn = false;       // Automatyczne przyciemnianie wyswietlacza, domyślnie włączone
 bool displayDimmerActive = false;
@@ -192,6 +192,9 @@ bool audioInfoRefresh = false;    // Flaga wymuszjąca wymagane odsiwezenie ze w
 bool noSDcard = false;              // flaga ustawiana przy braku wykrycia karty SD
 bool resumePlay = false;            // Flaga wymaganego uruchomienia odtwarzania po zakonczeniu komunikatu głosowego
 bool fwupd = false;               // Flaga blokujaca main loop podczas aktualizacji oprogramowania
+bool displayBufforSendRquest = false;
+bool configIrExist = false;
+
 
 unsigned long debounceDelay = 300;    // Czas trwania debouncingu w milisekundach
 unsigned long displayTimeout = 5000;  // Czas wyświetlania komunikatu na ekranie w milisekundach
@@ -207,16 +210,18 @@ uint8_t vuMeterL;                          // Wartosc VU dla L kanału zakres 0-
 uint8_t vuMeterR;                          // Wartosc VU dla R kanału zakres 0-255
 
 unsigned long scrollingStationStringTime;  // Czas do odswiezania scorllingu
-//unsigned long scrollingRefresh = 65;       // Czas w ms przewijania tekstu funkcji Scroller
-uint8_t scrollingRefresh = 65;       // Czas w ms przewijania tekstu funkcji Scroller
+uint8_t scrollingRefresh = 65;              // Czas w ms przewijania tekstu funkcji Scroller
+
+uint8_t vuMeterRefreshCounterSet = 0;      // Mnoznik co ile petli loopRefreshTime ma byc odswiezony VU Meter
+uint8_t scrollerRefreshCounterSet = 0;     // Mnoznik co ile petli loopRefreshTime ma byc odswiezony i przewiniety o 1px Scroller
+
 uint16_t stationStringScrollWidth;         // szerokosc Stringu nazwy stacji w funkcji Scrollera
 uint16_t xPositionStationString = 0;       // Pozycja początkowa dla przewijania tekstu StationString
 uint16_t offset;                           // Zminnna offsetu dla funkcji Scrollera - przewijania streamtitle na ekranie OLED
 unsigned char * psramData;                 // zmienna do trzymania danych stacji w pamieci PSRAM
 
 unsigned long vuMeterMilisTimeUpdate;           // Zmienna przechowujaca czas dla funkci millis VU Meter refresh
-//unsigned long vuMeterRefreshTime = 65;           // Czas w ms odswiezania VUmetera
-uint8_t vuMeterRefreshTime = 65;           // Czas w ms odswiezania VUmetera
+uint8_t vuMeterRefreshTime = 65;                // Czas w ms odswiezania VUmetera
 
 // ---- Serwer Web ---- //
 unsigned long currentTime = millis();
@@ -327,7 +332,9 @@ const char index_html[] PROGMEM = R"rawliteral(
   
   <p>Volume: <span id="textSliderValue">%SLIDERVALUE%</span></p>
   <p><input type="range" onchange="updateSliderVolume(this)" id="volumeSlider" min="1" max="21" value="%SLIDERVALUE%" step="1" class="slider"></p>
-
+  <br>
+  <button class="button" onclick="location.href='/displayMode'">OLED Display Mode</button>
+  <br>
   <p>Bank selection:</p>
   
      
@@ -429,8 +436,8 @@ const char config_html[] PROGMEM = R"rawliteral(
 <form action="/configupdate" method="POST">
 <table class="tableSettings">
 <tr><th>Setting</th><th>Value</th></tr>
-<tr><td>Normal Display Brightness (0-15)</td><td><input type="number" name="displayBrightness" min="1" max="15" value="%D1"></td></tr>
-<tr><td>Dimmed Display Brightness (0-15)</td><td><input type="number" name="dimmerDisplayBrightness" min="1" max="15" value="%D2"></td></tr>
+<tr><td>Normal Display Brightness (0-255)</td><td><input type="number" name="displayBrightness" min="1" max="255" value="%D1"></td></tr>
+<tr><td>Dimmed Display Brightness (0-255)</td><td><input type="number" name="dimmerDisplayBrightness" min="1" max="255" value="%D2"></td></tr>
 <tr><td>Auto Dimmer Delay Time (1-255 sec.)</td><td><input type="number" name="displayAutoDimmerTime" min="1" max="255" value="%D3"></td></tr>
 <tr><td>Auto Dimmer</td><td><select name="displayAutoDimmerOn"><option value="1"%S1>On</option><option value="0"%S2>Off</option></select></td></tr>
 <tr><td>Time Voice Info Every Hour</td><td><select name="timeVoiceInfoEveryHour"><option value="1"%S3>On</option><option value="0"%S4>Off</option></select></td></tr>
@@ -438,8 +445,8 @@ const char config_html[] PROGMEM = R"rawliteral(
 <tr><td>Encoder Function Order (0-1),   0-Volume, click for station list, 1-Station list, click for Volume</td><td><input type="number" name="encoderFunctionOrder" min="0" max="1" value="%D5"></td></tr>
 <tr><td>Display Mode (0-2),   0-Radio scroller, 1-Clock, 2-Three lines without scroll</td><td><input type="number" name="displayMode" min="0" max="2" value="%D6"></td></tr>
 <tr><td>VU Meter Visible (Mode 0 only)</td><td><select name="vuMeterOn"><option value="1" %S5>On</option><option value="0"%S6>Off</option></select></td></tr>
-<tr><td>VU Meter Refresh Time (20-100ms)</td><td><input type="number" name="vuMeterRefreshTime" min="5" max="100" value="%D7"></td></tr>
-<tr><td>Radio Scroller Refresh Time (20-100ms)</td><td><input type="number" name="scrollingRefresh" min="20" max="100" value="%D8"></td></tr>
+<!-- <tr><td>VU Meter Refresh Time (20-100ms)</td><td><input type="number" name="vuMeterRefreshTime" min="15" max="100" value="%D7"></td></tr> -->
+<tr><td>Radio Scroller & VU Meter Refresh Time (15-100ms)</td><td><input type="number" name="scrollingRefresh" min="15" max="100" value="%D8"></td></tr>
 <tr><td>ADC Keyboard Enabled</td><td><select name="adcKeyboardEnabled"><option value="1" %S7>On</option><option value="0"%S8>Off</option></select></td></tr>
 </table>
 <input type="submit" value="Update">
@@ -487,12 +494,12 @@ const char adc_html[] PROGMEM = R"rawliteral(
 <tr><td>keyboardButtonThreshold_7</td><td><input type="number" name="keyboardButtonThreshold_7" min="0" max="4095" value="%D7"></td></tr>
 <tr><td>keyboardButtonThreshold_8</td><td><input type="number" name="keyboardButtonThreshold_8" min="0" max="4095" value="%D8"></td></tr>
 <tr><td>keyboardButtonThreshold_9</td><td><input type="number" name="keyboardButtonThreshold_9" min="0" max="4095" value="%D9"></td></tr>
-<tr><td>keyboardButtonThreshold_Shift - OK/ENTER</td><td><input type="number" name="keyboardButtonThreshold_Shift" min="0" max="4095" value="%D10"></td></tr>
-<tr><td>keyboardButtonThreshold_Memory - BANK MENU</td><td><input type="number" name="keyboardButtonThreshold_Memory" min="0" max="4095" value="%D11"></td></tr>
-<tr><td>keyboardButtonThreshold_Band -  BACK</td><td><input type="number" name="keyboardButtonThreshold_Band" min="0" max="4095" value="%D12"></td></tr>
-<tr><td>keyboardButtonThreshold_Auto -  DISPLAY MODE</td><td><input type="number" name="keyboardButtonThreshold_Auto" min="0" max="4095" value="%D13"></td></tr>
-<tr><td>keyboardButtonThreshold_Scan - DIMMER/NET BANK UPDATE</td><td><input type="number" name="keyboardButtonThreshold_Scan" min="0" max="4095" value="%D14"></td></tr>
-<tr><td>keyboardButtonThreshold_Mute - MUTE</td><td><input type="number" name="keyboardButtonThreshold_Mute" min="0" max="4095" value="%D15"></td></tr>
+<tr><td>keyboardButtonThreshold_Shift - Ok/Enter</td><td><input type="number" name="keyboardButtonThreshold_Shift" min="0" max="4095" value="%D10"></td></tr>
+<tr><td>keyboardButtonThreshold_Memory - Bank Menu</td><td><input type="number" name="keyboardButtonThreshold_Memory" min="0" max="4095" value="%D11"></td></tr>
+<tr><td>keyboardButtonThreshold_Band -  Back</td><td><input type="number" name="keyboardButtonThreshold_Band" min="0" max="4095" value="%D12"></td></tr>
+<tr><td>keyboardButtonThreshold_Auto -  Display Mode</td><td><input type="number" name="keyboardButtonThreshold_Auto" min="0" max="4095" value="%D13"></td></tr>
+<tr><td>keyboardButtonThreshold_Scan - Dimmer/Network Bank Update</td><td><input type="number" name="keyboardButtonThreshold_Scan" min="0" max="4095" value="%D14"></td></tr>
+<tr><td>keyboardButtonThreshold_Mute - Mute</td><td><input type="number" name="keyboardButtonThreshold_Mute" min="0" max="4095" value="%D15"></td></tr>
 <tr><td>keyboardButtonThresholdTolerance</td><td><input type="number" name="keyboardButtonThresholdTolerance" min="0" max="50" value="%D16"></td></tr>
 <tr><td>keyboardButtonNeutral</td><td><input type="number" name="keyboardButtonNeutral" min="0" max="4095" value="%D17"></td></tr>
 <tr><td>keyboardSampleDelay (30-300ms)</td><td><input type="number" name="keyboardSampleDelay" min="30" max="300" value="%D18"></td></tr>
@@ -1475,44 +1482,7 @@ void audio_info(const char *info)
 void audio_id3data(const char *info) {
   Serial.print("id3data     ");
   Serial.println(info);
-
-/*
-  // Znajdź pozycję w tekście
-  int artistIndex1 = String(info).indexOf("Artist: ");
-  int artistIndex2 = String(info).indexOf("ARTIST=");
-
-  if (artistIndex1 != -1) {
-    // Przytnij tekst od pozycji "Artist:" do końca linii
-    artistString = String(info).substring(artistIndex1 + 8, String(info).indexOf('\n', artistIndex1));
-    Serial.println("Znalazłem artystę: " + artistString);
-    id3tag = true;
-  }
-  if (artistIndex2 != -1) {
-    // Przytnij tekst od pozycji "ARTIST=" do końca linii
-    artistString = String(info).substring(artistIndex2 + 7, String(info).indexOf('\n', artistIndex2));
-    Serial.println("Znalazłem artystę: " + artistString);
-    id3tag = true;
-  }
-
-  // Znajdź pozycję w tekście
-  int titleIndex1 = String(info).indexOf("Title: ");
-  int titleIndex2 = String(info).indexOf("TITLE=");
-
-  if (titleIndex1 != -1) {
-    // Przytnij tekst od pozycji "Title: " do końca linii
-    titleString = String(info).substring(titleIndex1 + 7, String(info).indexOf('\n', titleIndex1));
-    Serial.println("Znalazłem tytuł: " + titleString);
-    id3tag = true;
-  }
-  if (titleIndex2 != -1) {
-    // Przytnij tekst od pozycji "TITLE=" do końca linii
-    titleString = String(info).substring(titleIndex2 + 6, String(info).indexOf('\n', titleIndex2));
-    Serial.println("Znalazłem tytuł: " + titleString);
-    id3tag = true;
-  }
-*/
 }
-
 
 void audio_bitrate(const char *info) {
   Serial.print("bitrate     ");
@@ -1534,14 +1504,12 @@ void audio_showstreamtitle(const char *info) {
   Serial.println(info);
   stationString = String(info);
   
-    ActionNeedUpdateTime = true;
-    if ((volumeSet == false) && (bankMenuEnable == false) && (listedStations == false) && (rcInputDigitsMenuEnable == false) && (equalizerMenuEnable == false))
-    {
-    //screenRefresh = true;
+  ActionNeedUpdateTime = true;
+  //if ((volumeSet == false) && (bankMenuEnable == false) && (listedStations == false) && (rcInputDigitsMenuEnable == false) && (equalizerMenuEnable == false))
+  //if (displayActive == false)
+  //{
     audioInfoRefresh = true;
-    //audioShowStreamtitleRefresh = true;
-    //displayRadio();
-    }
+  //}
  
 }
 void audio_commercial(const char *info) {
@@ -3384,8 +3352,12 @@ void displayDimmer(bool dimmerON)
   Serial.print("displayDimmerActive: ");
   Serial.println(displayDimmerActive);
   //if ((dimmerON == 1) && (displayBrightness == 15)) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
-  if (dimmerON == 1) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
-  if (dimmerON == 0) { u8g2.sendF("ca", 0xC7, displayBrightness); displayDimmerTimeCounter = 0;}
+  
+  if ((dimmerON == 1) && (displayActive == false) && (fwupd == false)) { u8g2.setContrast(dimmerDisplayBrightness);}
+  if (dimmerON == 0) { u8g2.setContrast(displayBrightness); displayDimmerTimeCounter = 0;}
+
+  //if ((dimmerON == 1) && (displayActive == false) && (fwupd == false)) { u8g2.sendF("ca", 0xC7, dimmerDisplayBrightness);}
+  //if (dimmerON == 0) { u8g2.sendF("ca", 0xC7, displayBrightness); displayDimmerTimeCounter = 0;}
 }
 
 void displayDimmerTimer()
@@ -4313,7 +4285,7 @@ void voiceTimeEn()
 void readRemoteConfig() 
 {
 
-  Serial.println("Odczyt pliku konfiguracji pilota IR remote.txt z karty");
+  Serial.println("IR - Config, odczyt pliku konfiguracji pilota IR remote.txt z karty");
   
     // Tworzymy nazwę pliku
   String fileName = String("/remote.txt");
@@ -4321,7 +4293,8 @@ void readRemoteConfig()
   // Sprawdzamy, czy plik istnieje
   if (!SD.exists(fileName)) 
   {
-    Serial.println("Błąd: Plik konfiguracji pilota IR remote.txt nie istnieje.");
+    Serial.println("IR - Config, błąd, Plik konfiguracji pilota IR remote.txt nie istnieje.");
+    configIrExist = false;
     return;
   }
 
@@ -4329,37 +4302,42 @@ void readRemoteConfig()
   File configRemoteFile = SD.open(fileName, FILE_READ);
   if (!configRemoteFile)  // jesli brak pliku to...
   {
-    Serial.println("Błąd: Nie można otworzyć pliku konfiguracji pilota IR");
+    Serial.println("IR - Config, błąd, nie można otworzyć pliku konfiguracji pilota IR");
+    configIrExist = false;
     return;
   }
   // Przechodzimy do odpowiedniego wiersza pliku
+  configIrExist = true;
   int currentLine = 0;
   String configValue = "";
   while (configRemoteFile.available())
   {
     String line = configRemoteFile.readStringUntil(';'); //('\n');
-    
     int lineStart = line.indexOf("0x") + 2;  // Szukamy miejsca, gdzie zaczyna wartość zmiennej
     if ((lineStart != -1)) //&& (currentLine != 0)) // Pomijamy pierwszą linijkę gdzie jest opis pliku
 	  {
       configValue = line.substring(lineStart, lineStart + 5);  // Wyciągamy adres i komende
       configValue.trim();                      // Usuwamy białe znaki na początku i końcu
-      Serial.print(" Odczytano z pliku kod: " + String(currentLine) + " wartosc:");
-      Serial.print(configValue + " wartosc z tablicy ConfigArray: ");
+      Serial.print(" Odczytano kod: " + String(currentLine) + " wartosc:");
+      Serial.print(configValue + " wartosc ConfigArray: ");
       configRemoteArray[currentLine] = strtol(configValue.c_str(), NULL, 16);
       Serial.println(configRemoteArray[currentLine], HEX);
     }
     currentLine++;
   }
-  Serial.print("Zamykamy plik config na wartosci currentLine:");
-  Serial.println(currentLine);
+  //Serial.print("Zamykamy plik config na wartosci currentLine:");
+  //Serial.println(currentLine);
   configRemoteFile.close();  // Zamykamy plik po odczycie kodow pilota
 }
 
 void assignRemoteCodes()
 {
-  if (noSDcard == false) 
+  Serial.print("IR Config - assignRemoteCodes, configIrExist: ");
+  Serial.println(configIrExist);
+
+  if ((noSDcard == false) && (configIrExist == true)) 
   {
+  Serial.println("IR config - Przypisuje wartosci z pliku Remote.txt");
   rcCmdVolumeUp = configRemoteArray[0];    // Głosnosc +
   rcCmdVolumeDown = configRemoteArray[1];  // Głośnosc -
   rcCmdArrowRight = configRemoteArray[2];  // strzałka w prawo - nastepna stacja
@@ -4387,8 +4365,9 @@ void assignRemoteCodes()
   rcCmdKey8 = configRemoteArray[24];       // Przycisk "8"
   rcCmdKey9 = configRemoteArray[25];       // Przycisk "9"
   }
-  else if (noSDcard == true) // Jesli nie ma karty SD przypisujemy standardowe wartosci dla pilota Kenwood RC-406
+  else if ((noSDcard == true) || (configIrExist == false)) // Jesli nie ma karty SD przypisujemy standardowe wartosci dla pilota Kenwood RC-406
   {
+    Serial.println("IR Config - Przypisuje wartosci domyslne");
     rcCmdVolumeUp = 0xB914;   // Głosnosc +
     rcCmdVolumeDown = 0xB915; // Głośnosc -
     rcCmdArrowRight = 0xB90B; // strzałka w prawo - nastepna stacja
@@ -4417,6 +4396,8 @@ void assignRemoteCodes()
     rcCmdKey9 = 0xB909;       // Przycisk "9"
   }
 }
+
+
 
 void readRcStoredCodes(uint8_t x) // Odczyt kdów pilota - funkcja eksperymentalna, testowa
 {
@@ -4564,7 +4545,7 @@ void setup()
   delay(250);
 
   // Powitanie na wyswietlaczu:
-  u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
+  //u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
   
   u8g2.drawXBMP(0, 5, notes_width, notes_height, notes);  // obrazek - nutki
   u8g2.setFont(u8g2_font_fub14_tf);
@@ -4608,7 +4589,7 @@ void setup()
   
   
   u8g2.sendBuffer();
-  u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
+  //u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
   button2.setDebounceTime(50);  // Ustawienie czasu debouncingu dla przycisku enkodera 2
  
   // Inicjalizacja WiFiManagera
@@ -4619,10 +4600,14 @@ void setup()
   readVolumeFromSD();    // Odczytujemy nastawę ostatniego poziomu głośnosci z karty SD /EEPROMu
   readConfig();          // Odczyt konfiguracji
   readAdcConfig();       // Odczyt konfiguracji klaiwautry ADC
+  readRemoteConfig();    // Odczyt konfiguracji pilota IR
+  assignRemoteCodes();   // Przypisanie kodów pilota IR
+
+  u8g2.setContrast(displayBrightness);    // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
+
   /*-------------------- RECOVERY MODE --------------------*/
   recoveryModeCheck();
-
-
+  
   previous_bank_nr = bank_nr;  // wyrównanie wartości przy stacie radia aby nie podmienic bank_nr na wartość 0 po pierwszym upływie czasu menu
   Serial.print("debug1...wartość bank_nr:");
   Serial.println(bank_nr);
@@ -4779,6 +4764,29 @@ void setup()
       request->send_P(200, "text/html", html.c_str(), processor);
     });
 
+    server.on("/displayMode", HTTP_GET, [](AsyncWebServerRequest *request)
+    {
+      displayMode++;
+      if (displayMode > 2) {displayMode = 0; }
+      //ODswiezenie ekranu OLED po zmianach konfiguracji
+      ir_code = rcCmdBack; // Udajemy kod pilota Back
+      bit_count = 32;
+      calcNec();          // Przeliczamy kod pilota na pełny oryginalny kod NEC
+      request->redirect("/");
+      //request->send_P(200, "text/html", html.c_str(), processor);
+    });
+
+    server.on("/playTime", HTTP_GET, [](AsyncWebServerRequest *request)
+    {
+      //<button class="button" onclick="location.href='/playTime'">Play Voice Time</button>
+      voiceTime();
+      request->redirect("/");
+    });
+
+
+
+
+
 /*
     server.on("/page3", HTTP_ANY, [](AsyncWebServerRequest *request)
     {
@@ -4894,6 +4902,9 @@ void setup()
     }
     if (request->hasParam("keyboardButtonThreshold_Band", true)) {
       keyboardButtonThreshold_Band = request->getParam("keyboardButtonThreshold_Band", true)->value().toInt();
+    }
+    if (request->hasParam("keyboardButtonThreshold_Auto", true)) {
+      keyboardButtonThreshold_Auto = request->getParam("keyboardButtonThreshold_Auto", true)->value().toInt();
     }
     if (request->hasParam("keyboardButtonThreshold_Scan", true)) {
       keyboardButtonThreshold_Scan = request->getParam("keyboardButtonThreshold_Scan", true)->value().toInt();
@@ -5253,8 +5264,8 @@ void setup()
     
     displayRadio();
     updateTimer();
-    readRemoteConfig();
-    assignRemoteCodes();
+    //readRemoteConfig();
+    //assignRemoteCodes();
   } 
   else 
   {
@@ -5320,6 +5331,7 @@ void loop()
 
   if ((fwupd == false) && (displayActive) && (millis() - displayStartTime >= displayTimeout))  // Przywracanie poprzedniej zawartości ekranu po 6 sekundach
   {
+    /*
     Serial.print("rcInputDigitsMenuEnable: ");
     Serial.println(rcInputDigitsMenuEnable);
 
@@ -5328,35 +5340,21 @@ void loop()
     
     Serial.print("Bank nr: ");
     Serial.println(bank_nr);
+    */
 
     if (volumeBufferValue != volumeValue)
     {
       saveVolumeOnSD();
       volumeBufferValue = volumeValue;
     }
-
-    if ((rcInputDigitsMenuEnable == true) && (station_nr != stationFromBuffer)) // Jezeli nastapiła zmiana numeru stacji to wczytujemy nową stacje    
+    
+    // Jezeli nastapiła zmiana numeru stacji to wczytujemy nową stacje
+    if ((rcInputDigitsMenuEnable == true) && (station_nr != stationFromBuffer))   
     {
      changeStation(); 
     }
-
-    displayDimmer(0);
-    
-    displayActive = false;
-    timeDisplay = true;
-    listedStations = false;
-    //menuEnable = false;
-    volumeSet = false;
-    bankMenuEnable = false;
-    bankNetworkUpdate = false;
-    equalizerMenuEnable = false;
-    rcInputDigitsMenuEnable = false;
-    rcInputDigit1 = 0xFF; // czyscimy cyfre 1, flaga pustej zmiennej to FF
-    rcInputDigit2 = 0xFF; // czyscimy cyfre 2, flaga pustej zmiennej to FF
-
-    station_nr = stationFromBuffer;
-    bank_nr = previous_bank_nr;
-    
+    displayDimmer(0); 
+    clearFlags();
     displayRadio();
     u8g2.sendBuffer();
   }
@@ -5395,7 +5393,8 @@ void loop()
       Serial.println(pulse_duration_560us);
 
 
-      fwupd = false;    // Kasujemy flagę aktulizacji OTA gdyby była ustawiona
+      fwupd = false;        // Kasujemy flagę aktulizacji OTA gdyby była ustawiona
+      //displayActive = true; // jesli odbierzemy kod z pilota to uatywnij wyswietlacz i wyłacz przyciemnienie OLEDa
       //displayDimmer(0); // jesli odbierzemy kod z pilota to wyłaczamy przyciemnienie wyswietlacza OLED
       
       if (ir_code == rcCmdVolumeUp)  { volumeUp(); }         // Przycisk głośniej
@@ -5600,8 +5599,8 @@ void loop()
         if (displayMode > 2) {displayMode = 0;}
         displayRadio();
         //u8g2.sendBuffer();
-        ActionNeedUpdateTime = true;
         clearFlags();
+        ActionNeedUpdateTime = true;
       }
       else if (ir_code == rcCmdRed) 
       {     
@@ -5649,11 +5648,10 @@ void loop()
         //readRcStoredCodes(rcPage); // Sprawdzenie komend pilota - funkcja testowa
         //rcPage++;
         //if (rcPage > 2) {rcPage = 0;}
-      }
-         
+      }   
       else if (ir_code == rcCmdBankMinus) 
       {
-      if (bankMenuEnable == true)
+        if (bankMenuEnable == true)
         {
           bank_nr--;
           if (bank_nr < 1) 
@@ -5677,16 +5675,8 @@ void loop()
         bankMenuDisplay();
       }
      
-      else if (ir_code == rcCmdAud)
-      {
-        //debugAudioBuffor = !debugAudioBuffor;
-        //toneSelect = 1;
-        displayEqualizer();
-      }
-      else
-      {
-        Serial.println("Inny przycisk");
-      }
+      else if (ir_code == rcCmdAud) {displayEqualizer();}
+      else { Serial.println("Inny przycisk"); }
     }
     else
     {
@@ -5702,60 +5692,32 @@ void loop()
     }
     ir_code = 0;
     bit_count = 0;
-    Serial.print("debug-- Czas2 - Czas1 = ");
-    //runTime2 = runTime2 - runTime1;
-    Serial.println(runTime);
-    
     attachInterrupt(digitalPinToInterrupt(recv_pin), pulseISR, CHANGE);
-    Serial.print("debug-- Kontrola stosu:");
-    Serial.print(uxTaskGetStackHighWaterMark(NULL));
-    Serial.println(" DWORD");
+    
+    // Serial.print("debug-- Czas2 - Czas1 = ");
+    // runTime2 = runTime2 - runTime1;
+    // Serial.println(runTime);
+    // Serial.print("debug-- Kontrola stosu:");
+    // Serial.print(uxTaskGetStackHighWaterMark(NULL));
+    // Serial.println(" DWORD");
   }
 
-
-
-  if (audioInfoRefresh == true)// Zmiana streamtitle lub info bitrate, czestotliwość - wymaga odswiezenia displayRadio
+  if ((audioInfoRefresh == true) && (displayActive == false)) // Zmiana streamtitle lub info bitrate, czestotliwość - wymaga odswiezenia displayRadio
   { 
     audioInfoRefresh = false;
     displayRadio(); // Streamtitle, bitrate, wymaga odswiezenia
   }
-
-
-  //if ((millis() - vuMeterMilisTimeUpdate > vuMeterRefreshTime) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true)) 
-  //if ((millis() - vuMeterMilisTimeUpdate > vuMeterRefreshTime) && (bankMenuEnable == false) && (listedStations == false) && (timeDisplay == true))
-  if ((millis() - vuMeterMilisTimeUpdate > vuMeterRefreshTime) && (displayActive == false))  
-  {
-    vuMeterMilisTimeUpdate = millis();
-    
-    if ((volumeMute == true) || (volumeValue == 0))   // Obsługa wyciszenia dzwięku, wprowadzamy napis MUTE na ekran
-    {   
-      u8g2.setDrawColor(0);
-      if (displayMode == 0) {u8g2.drawStr(0,48, "> MUTED <");}
-      if (displayMode == 1) {u8g2.drawStr(200,47, "> MUTED <");}
-      u8g2.setDrawColor(1);
-    } 
-
-    //Rysujemy wskaznik VU jesli flaga rysowania aktywna, mute = 0 i tylko trybie displayMode 0
-    if (vuMeterOn == true && displayActive == false && displayMode == 0 && volumeMute == false){vuMeter();}
-    u8g2.sendBuffer();
-
-  }
-
-
-  /*---------------------  Odswiezanie VU Meter, Time, Scroller, OLED, WiFi ---------------------*/ 
   
-  //if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (menuEnable == false) && (listedStations == false) && (timeDisplay == true))
-  //if ((millis() - scrollingStationStringTime > scrollingRefresh) && (bankMenuEnable == false) && (listedStations == false) && (timeDisplay == true)) 
+  /*---------------------  Odswiezanie VU Meter, Time, Scroller, OLED, WiFi ver. 1 ---------------------*/ 
+ ///*
   if ((millis() - scrollingStationStringTime > scrollingRefresh) && (displayActive == false)) 
-  
   {
     scrollingStationStringTime = millis();
-  
-    if (ActionNeedUpdateTime == true) // Aktualizacja zegara co 1 sek. + status audio buffora + status wifi
+    if (ActionNeedUpdateTime == true) // Aktualizacja zegara co 1 sek. + status audio buffora
     {
       ActionNeedUpdateTime = false;
       updateTimer();
-      
+   
       if (voiceTimePlay == true)
       {
         voiceTimePlay = false;
@@ -5774,20 +5736,32 @@ void loop()
       }
     }
     
-    displayRadioScroller();  // wykonujemy przewijanie tekstu station stringi przygotowujemy bufor ekranu  
-   
+    displayRadioScroller();  // wykonujemy przewijanie tekstu station stringi przygotowujemy bufor ekranu
+    
+    if (volumeMute == true)   // Obsługa wyciszenia dzwięku, wprowadzamy napis MUTE na ekran
+    {   
+      u8g2.setDrawColor(0);
+      if (displayMode == 0) {u8g2.drawStr(0,48, "> MUTED <");}
+      if (displayMode == 1) {u8g2.drawStr(200,47, "> MUTED <");}
+      u8g2.setDrawColor(1);
+    } 
+    
+    //Rysujmey wskaznik VU esli flaga rysowania aktywna, mute = 0 i tylko trybie displayMode 0
+    if (vuMeterOn == true && displayActive == false && displayMode == 0 && volumeMute == false){vuMeter();}
+    
     if (urlToPlay == true) // Jesli web serwer ustawił flagę "odtwarzaj URL" to uruchamiamy funkcje grania z adresu URL wysłanego przez strone WWW
     {
       urlToPlay = false;
       webUrlStationPlay();
       displayRadio();
     }
+
     u8g2.sendBuffer();  // rysujemy całą zawartosc ekranu.
+   
   }
-  
-  
-  runTime2 = esp_timer_get_time();
-  runTime = runTime2 - runTime1;  
+  //*/
+  //runTime2 = esp_timer_get_time();
+  //runTime = runTime2 - runTime1;  
 }
 
 
