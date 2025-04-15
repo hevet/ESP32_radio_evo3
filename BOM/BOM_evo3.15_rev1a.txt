@@ -1,9 +1,0 @@
-Power switch -> 1x - https://www.tme.eu/pl/details/prk22j5ebbnn/przelaczniki-typu-rocker/zf/
- variant -> https://www.tme.eu/pl/details/mr5110f5bb/przelaczniki-typu-rocker/canal-electronic/mr5-110-f5-bbw-2/
-
-
-SD Card reader:
-https://sklep.msalamon.pl/produkt/czytnik-kart-pamieci-microsd-spi-sdio/
-
-OLED:
-https://sklep.msalamon.pl/produkt/wyswietlacz-oled-312-256x64px-bialy/
