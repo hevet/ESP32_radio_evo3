@@ -6,6 +6,7 @@ Changes tracking file for ESP Radio EVO version
 - Refresh Station String in real time on web page
 - Refresh Volume over ws in real time on web page
 - Bank Editor 1.05 
+- Config option for volume rage 1-21 or 1-42
 
 3.17
 - OTA Update directly from web page
