@@ -7,6 +7,7 @@ Changes tracking file for ESP Radio EVO version
 - Refresh Volume over ws in real time on web page
 - Bank Editor 1.05 
 - Config option for volume rage 1-21 or 1-42
+- mDNS add, radio hostname: http://esp32radio.local
 
 3.17
 - OTA Update directly from web page
