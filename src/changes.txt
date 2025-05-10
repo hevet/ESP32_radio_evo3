@@ -1,5 +1,12 @@
 Changes tracking file for ESP Radio EVO version
 
+3.17.77
+- Add web sockets to web page
+- New layout of web page
+- Refresh Station String in real time on web page
+- Refresh Volume over ws in real time on web page
+- Bank Editor 1.05 
+
 3.17
 - OTA Update directly from web page
 - SD card content browser over the web page (view, delete, edit)
