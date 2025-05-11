@@ -1,5 +1,14 @@
 Changes tracking file for ESP Radio EVO version
 
+3.17.90
+- Stationtext on webpage displaying now as no scrolling text in 3 lines
+- Recation on volume slider with mouse wheel
+- No processor function to parse station name, station text, volume value. Now it worsk on WebSockets.
+- Config option for volume rage 1-21 or 1-42 now change is executed after saving config (no restart required)
+- Display of Bank and Station reversed to correct order (first Bank, next Station)
+- Correct PL font processing
+- Smaller font (0.95 vs 1.1) used for main web page to fit on FullHD monitors without side scrolling
+
 3.17.77
 - Add web sockets to web page
 - New layout of web page

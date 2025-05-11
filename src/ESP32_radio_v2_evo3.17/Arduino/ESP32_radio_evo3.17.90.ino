@@ -6271,50 +6271,13 @@ void loop()
       }
       else if (ir_code == rcCmdRed) 
       {     
-       voiceTime();
-
-       //u8g2.setPowerSave(1);
-       //u8g2.setContrast(128);
-
-       //saveConfig();
-       //{vuMeterOn = !vuMeterOn; displayRadio();}  
-       //u8g2.sendF("ca", 0xb9, 0x07);
-       //u8g2.sendF("ca", 0xb6, 0xFF);
-       //displayBasicInfo();
-       //debugAudioBuffor = !debugAudioBuffor;
-       //displayAutoDimmerOn = !displayAutoDimmerOn;     
+       voiceTime();   
         
       }
       else if (ir_code == rcCmdGreen) 
       {
-        readRemoteConfig();
-        assignRemoteCodes();
-
-        //voiceTimeEn();
-        
-        //u8g2.setPowerSave(0);
-        //u8g2.setContrast(255);
-        //readConfig();
-
-        //u8g2.sendF("ca", 0xc1, 0xff);
-        //u8g2.sendF("caaaaaaaaaaaaaaa", 0xb8, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4, 0xb4);
-
-        //saveEEPROM();
-        //displayConfig();
-         
-        //readPSRAMstations();
-         
-        //saveConfig();
-        //Serial.println("#### ODCZYT ####");
-        
-                 
-        //displayRadio();
-        //u8g2.sendBuffer();
-        //vuMeterMode = !vuMeterMode;} // Zmiana trybu VU meter z przerywanych kresek na ciągłe paski
-         
-        //readRcStoredCodes(rcPage); // Sprawdzenie komend pilota - funkcja testowa
-        //rcPage++;
-        //if (rcPage > 2) {rcPage = 0;}
+        voiceTimeEn();
+              
       }   
       else if (ir_code == rcCmdBankMinus) 
       {
@@ -6437,3 +6400,5 @@ void loop()
   //runTime2 = esp_timer_get_time();
   //runTime = runTime2 - runTime1;  
 }
+
+
