@@ -1,5 +1,12 @@
 Changes tracking file for ESP Radio EVO version
 
+3.18.04
+- correction of 1250 to UTF8 add for station string
+- code clean from unused functions
+- remove ScrollerFormater function from displayRadio function
+- separate ScrollerFormater fucntion add to avoid flickering on station with autoDJ and counter in station string
+
+
 3.17.99
 - bits per sample info add to webpage
 - sampling rate info add to webpage
