@@ -1,5 +1,12 @@
 Changes tracking file for ESP Radio EVO version
 
+3.18.06
+- New VUmeter with 1px increase, L,R letters
+- Peak & Hold VUmeter function added
+
+3.18.05
+- correction of 1250 to UTF8 function
+
 3.18.04
 - correction of 1250 to UTF8 add for station string
 - code clean from unused functions
