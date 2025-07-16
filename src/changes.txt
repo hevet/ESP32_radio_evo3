@@ -1,5 +1,15 @@
 Changes tracking file for ESP Radio EVO version
 
+3.18.12
+- smooth mode of VU meter
+- new layout of mode 0
+- new layout of station list
+- new font for radio station name
+- corrected recovery mode response
+- web configuration, default values added
+- option for read station name direcly from stream -  experimental!
+
+
 3.18.06
 - New VUmeter with 1px increase, L,R letters
 - Peak & Hold VUmeter function added
