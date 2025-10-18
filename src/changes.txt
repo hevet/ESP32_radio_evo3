@@ -1,4 +1,30 @@
+3.19.00
+- this is copy of version 3.18.21 with support for new audio i2s library and ESP32 core 
+- support new stream info read
+
+
 Changes tracking file for ESP Radio EVO version
+
+3.18.21
+- THIS IS LAST VERSION WORKING ON OLD AUDIO LIBRARY AND ESP32 CORE 
+
+Arduino IDE 2.3.4
+
+Lib list:
+ESP32 3.0.7
+AsyncTCP 3.3.6
+ESP Asunc WebServer 3.7.2
+ESP-audioI2S-master 3.0.13 + recompiled wip, netif
+U8g2 2.36.5
+WiFiManager 2.0.17
+ezButton 1.0.4
+
+changes:
+- corrected station list open from remote controler
+- station list starting from current playing station
+- new OLED mode 3 screen  with centered content and mini VU meters
+- new OLED mode 4 with full screen VU meters
+
 
 3.18.12
 - smooth mode of VU meter

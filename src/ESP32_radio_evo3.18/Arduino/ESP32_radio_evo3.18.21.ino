@@ -1,5 +1,5 @@
 // ############################################################################################### //
-// EVO Web Radio  - Interent Radio Player                                                        //
+// EVO Web Radio  - Interent Radio Player                                                          //
 // ############################################################################################### //
 // Robgold 2025                                                                                    //
 // Source -> https://github.com/dzikakuna/ESP32_radio_evo3/tree/main/src/ESP32_radio_v2_evo3.18    //
@@ -23,7 +23,7 @@
 #include <ESPmDNS.h>           // Blibioteka mDNS dla ESP
 
 // Deklaracja wersji oprogramowania i nazwy hosta widocznego w routerze oraz na ekranie OLED i stronie www
-#define softwareRev "v3.18.13"  // Wersja oprogramowania radia
+#define softwareRev "v3.18.21"  // Wersja oprogramowania radia
 #define hostname "evoradio"   // Definicja nazwy hosta widoczna na zewnątrz
 
 
@@ -63,8 +63,8 @@
 #define STATION_NAME_LENGTH 220  // Nazwa stacji wraz z bankiem i numerem stacji do wyświetlenia w pierwszej linii na ekranie
 #define MAX_FILES 100            // Maksymalna liczba plików lub katalogów w tablicy directoriesz
 
-
-#define STATIONS_URL1 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank01.txt"   // Adres URL do pliku z listą stacji radiowych
+String STATIONS_URL1 = "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank01.txt";   // Adres URL do pliku z listą stacji radiowych
+//#define STATIONS_URL1 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank01.txt"   // Adres URL do pliku z listą stacji radiowych
 #define STATIONS_URL2 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank02.txt"   // Adres URL do pliku z listą stacji radiowych
 #define STATIONS_URL3 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank03.txt"   // Adres URL do pliku z listą stacji radiowych
 #define STATIONS_URL4 "https://raw.githubusercontent.com/dzikakuna/ESP32_radio_streams/main/bank04.txt"   // Adres URL do pliku z listą stacji radiowych
@@ -131,9 +131,11 @@ int buttonLongPressTime2 = 2000;              // Czas reakcji na długie nacisni
 int buttonShortPressTime2 = 500;              // Czas rekacjinna krótkie nacisniecie enkodera 2
 int buttonSuperLongPressTime2 = 4000;         // Czas reakcji na super długie nacisniecie enkoder 2
 uint8_t stationNameLenghtCut = 24;            // 24-> 25 znakow, 25-> 26 znaków, zmienna określająca jak długa nazwę ma nazwa stacji w plikach Bankow liczone od 0- wartosci ustalonej
-uint8_t yPositionDisplayScrollerMode0 = 33;   // Wysokosc (y) wyswietlania przewijanego/stalego tekstu stacji w danym trybie
-uint8_t yPositionDisplayScrollerMode1 = 61;   // Wysokosc (y) wyswietlania przewijanego/stalego tekstu stacji w danym trybie
-uint8_t yPositionDisplayScrollerMode2 = 25;   // Wysokosc (y) wyswietlania przewijanego/stalego tekstu stacji w danym trybie
+const uint8_t yPositionDisplayScrollerMode0 = 33;   // Wysokosc (y) wyswietlania przewijanego/stalego tekstu stacji w danym trybie
+const uint8_t yPositionDisplayScrollerMode1 = 61;   // Wysokosc (y) wyswietlania przewijanego/stalego tekstu stacji w danym trybie
+const uint8_t yPositionDisplayScrollerMode2 = 25;   // Wysokosc (y) wyswietlania przewijanego/stalego tekstu stacji w danym trybie
+const uint8_t yPositionDisplayScrollerMode3 = 51;   // Wysokosc (y) wyswietlania przewijanego/stalego tekstu stacji w danym trybie
+const uint8_t stationNamePositionYmode3 = 34;
 uint16_t stationStringScrollLength = 0;
 uint8_t maxStationVisibleStringScrollLength = 46;
 bool stationNameFromStream = 0;               // Flaga definiujaca czy wyswietlamy nazwe stacji z plikow Banku pamieci czy z informacji nadawanych w streamie
@@ -225,6 +227,11 @@ uint8_t peakHoldTimeR = 0;                 // Licznik peakHold dla kanalu praweg
 const uint8_t peakHoldThreshold = 5;       // Liczba cykli zanim peak opadnie
 const uint8_t vuLy = 41;                   // Koordynata Y wskaznika VU L-lewego (wyzej)
 const uint8_t vuRy = 47;                   // Koordynata Y wskaznika VU R-prawego (nizej)
+const uint8_t vuLyMode3 = 54;              // Koordynata Y wskaznika VU L-lewego (wyzej)
+const uint8_t vuRyMode3 = 60;              // Koordynata Y wskaznika VU R-prawego (nizej
+const uint8_t vuThicknessMode3 = 1;        // Grubosc kreseczki wskaznika VU w trybie Mode3
+const int vuCenterXmode3 = 128;            // Pozycja centralna startu VU w trybie Mode 3
+const int vuYmode3 = 62;                   // Polozenie wyokosci (Y) VU w trybie Mode 3
 bool vuPeakHoldOn = 1;                     // Flaga okreslajaca czy funkcja Peak & Hold na wskazniku VUmeter jest wlaczona
 bool vuMeterOn = true;                     // Flaga właczajaca wskazniki VU
 bool vuMeterMode = false;                  // tryb rysowania vuMeter
@@ -233,6 +240,8 @@ uint8_t displayVuR = 0;                    // wartosc VU do wyswietlenia po proc
 uint8_t vuRiseSpeed = 24;                  // szybkość narastania VU
 uint8_t vuFallSpeed = 6;                   // szybkość opadania VU
 bool vuSmooth = 1;                         // Flaga zalaczenia funkcji smootht (domyslnie wlaczona=1)
+uint8_t vuRiseNeedleSpeed = 2;                  // szybkość narastania VU
+uint8_t vuFallNeedleSpeed = 6;                   // szybkość opadania VU
 
 unsigned long scrollingStationStringTime;  // Czas do odswiezania scorllingu
 uint8_t scrollingRefresh = 50;              // Czas w ms przewijania tekstu funkcji Scroller
@@ -372,10 +381,10 @@ const char index_html[] PROGMEM = R"rawliteral(
       .button:active {background-color: #4a4a4a; box-shadow: 0 4px #666; transform: translateY(2px);}
       .column { align: center; padding: 5px; display: flex; justify-content: space-between;}
       .columnlist { align: center; padding: 10px; display: flex; justify-content: center;}
-      .stationList {text-align:left; margin-top: 0px; width: 280px; margin-bottom:0px;cursor: pointer;}
-      .stationNumberList {text-align:center; margin-top: 0px; width: 35px; margin-bottom:0px;}
-      .stationListSelected {text-align:left; margin-top: 0px; width: 280px; margin-bottom:0px;cursor: pointer; background-color: #4CAF50;}
-      .stationNumberListSelected {text-align:center; margin-top: 0px; width: 35px; margin-bottom:0px; background-color: #4CAF50;}
+      .stationList {text-align:left; margin-top: 2px; width: 280px; height:18px; margin-bottom:0px;cursor: pointer;}
+      .stationNumberList {text-align:center; margin-top: 2px; width: 35px; height:18px; margin-bottom:0px;}
+      .stationListSelected {text-align:left; margin-top: 2px; width: 280px; height:18px; margin-bottom:0px;cursor: pointer; background-color: #4CAF50;}
+      .stationNumberListSelected {text-align:center; margin-top: 2px; width: 35px; height:18px; margin-bottom:0px; background-color: #4CAF50;}
       .station-name   
     </style>
   </head>
@@ -719,7 +728,7 @@ const char config_html[] PROGMEM = R"rawliteral(
   <tr><td>Time Voice Info Every Hour, default:On</td><td><select name="timeVoiceInfoEveryHour"><option value="1"%S3>On</option><option value="0"%S4>Off</option></select></td></tr>
   <tr><td>VU Meter Mode (0-1),    0-dashed lines, 1-continuous lines</td><td><input type="number" name="vuMeterMode" min="0" max="1" value="%D4"></td></tr>
   <tr><td>Encoder Function Order (0-1),   0-Volume, click for station list, 1-Station list, click for Volume</td><td><input type="number" name="encoderFunctionOrder" min="0" max="1" value="%D5"></td></tr>
-  <tr><td>Display Mode (0-2),   0-Radio scroller, 1-Clock, 2-Three lines without scroll</td><td><input type="number" name="displayMode" min="0" max="2" value="%D6"></td></tr>
+  <tr><td>Display Mode (0-3),   0-Radio scroller, 1-Clock, 2-Three lines, 3- Minimal</td><td><input type="number" name="displayMode" min="0" max="3" value="%D6"></td></tr>
 
   
 
@@ -733,7 +742,7 @@ const char config_html[] PROGMEM = R"rawliteral(
   <tr><td>Volume Steps 1-21 [Off], 1-42  [On], default:Off</td><td><select name="maxVolumeExt"><option value="1"%S11>On</option><option value="0"%S12>Off</option></select></td></tr>
   <tr><td>Station Name Read From Stream [On-From Stream, Off-From Bank] EXPERIMENTAL</td><td><select name="stationNameFromStream"><option value="1"%S17>On</option><option value="0"%S18>Off</option></select></td></tr>
   <tr><th><b>VU Meter Settings</b></th></tr>
-  <tr><td>VU Meter Visible (Mode 0 only), default:On</td><td><select name="vuMeterOn"><option value="1"%S5>On</option><option value="0"%S6>Off</option></select></td></tr>
+  <tr><td>VU Meter Visible (Mode 0, 3 only), default:On</td><td><select name="vuMeterOn"><option value="1"%S5>On</option><option value="0"%S6>Off</option></select></td></tr>
   <tr><td>VU Meter Peak & Hold Function, default:On </td><td><select name="vuPeakHoldOn"><option value="1"%13>On</option><option value="0"%S14>Off</option></select></td></tr>
   <tr><td>VU Meter Smooth Function, default:On </td><td><select name="vuSmooth"><option value="1"%S15>On</option><option value="0"%S16>Off</option></select></td></tr>
 
@@ -959,8 +968,8 @@ const long gmtOffset_sec = 3600;          // Przesunięcie czasu UTC w sekundach
 const int daylightOffset_sec = 3600;      // Przesunięcie czasu letniego w sekundach, dla Polski to 1 godzina
 
 
-const uint8_t spleen6x12PL[2954] U8G2_FONT_SECTION("spleen6x12PL") =
-  "\340\1\3\2\3\4\1\3\4\6\14\0\375\10\376\11\377\1\225\3]\13f \7\346\361\363\237\0!\12"
+const uint8_t spleen6x12PL[2958] U8G2_FONT_SECTION("spleen6x12PL") =
+"\340\1\3\2\3\4\1\3\4\6\14\0\375\10\376\11\377\1\225\3]\13q \7\346\361\363\237\0!\12"
   "\346\361#i\357`\316\0\42\14\346\361\3I\226dI\316/\0#\21\346\361\303I\64HI\226dI"
   "\64HIN\6$\22\346q\205CRK\302\61\311\222,I\206\60\247\0%\15\346\361cQK\32\246"
   "I\324\316\2&\17\346\361#Z\324f\213\22-Zr\42\0'\11\346\361#i\235\237\0(\13\346\361"
@@ -1007,53 +1016,54 @@ const uint8_t spleen6x12PL[2954] U8G2_FONT_SECTION("spleen6x12PL") =
   "\25\220\6\341\311\243\0\221\6\341\311\243\0\222\6\341\311\243\0\223\6\341\311\243\0\224\6\341\311\243\0\225"
   "\6\341\311\243\0\226\6\341\311\243\0\227\16\346\361eC\222\306sZ\31r\62\0\230\6\341\311\243\0\231"
   "\6\341\311\243\0\232\6\341\311\243\0\233\6\341\311\243\0\234\16\346\361\205\71\66$\361\234&CN\6\235"
-  "\6\341\311\243\0\236\6\341\311\243\0\237\15\346\361\205\71\64\250a\343\240S\1\240\7\346\361\363\237\0\241"
-  "\23\346\361\3S\226dI\226\14J\226dI\26\306\71\0\242\21\346\361\23\302!\251%Y\222%\341\220"
-  "\345\24\0\243\14\346q\247-\231\230\306CN\5\244\22\346\361\3S\226dI\226\14J\226dI\26\346"
-  "\4\245\22\346\361\3S\226dI\226\14J\226dI\26\346\4\246\16\346\361eC\222\306sZ\31r\62"
-  "\0\247\17\346\361#Z\224\245Z\324\233\232E\231\4\250\11\346\361\3I\316\237\1\251\21\346\361\3C\22"
-  "J\211\22)\221bL\206\234\12\252\15\346\361#r\66\325vd\310\31\1\253\17\346\361\223\243$J\242"
-  "\266(\213r\42\0\254\14\346qe\203T\354\232\16:\25\255\10\346\361s\333y\3\256\21\346\361\3C"
-  "\22*\226d\261$c\62\344T\0\257\14\346qe\203\32vM\7\235\12\260\12\346\361#Z\324\246\363"
-  "\11\261\20\346\361S\347hH\262$\213\206\64\314\21\0\262\14\346\361#Z\224\206\305!\347\6\263\13\346"
-  "\361\3i\252\251\315:\31\264\11\346\361Ca\235\337\0\265\14\346\361\23\243\376i\251\346 \0\266\16\346"
-  "\361\205\71\66$\361\234&CN\6\267\10\346\361s\314y\4\270\11\346\361\363\207\64\14\1\271\20\346\361"
-  "S\347hH\262$\213\206\64\314\21\0\272\15\346\361#Z\324\233\16\15\71#\0\273\17\346\361\23\243,"
-  "\312\242\226(\211r\62\0\274\15\346\361\205\71\64\250a\343\240S\1\275\17\346\361\204j-\211\302\26\245"
-  "\24\26\207\0\276\21\346\361hQ\30'\222\64\206ZR\33\302\64\1\277\15\346\361#\71\64\250a\343\240"
-  "S\1\300\21\346\361\304\341\224%Y\62(Y\222%YN\5\301\21\346\361\205\341\224%Y\62(Y\222"
-  "%YN\5\302\22\346q\205I\66eI\226\14J\226dI\226S\1\303\23\346\361DI\242MY\222"
-  "%\203\222%Y\222\345T\0\304\20\346\361S\347hH\262$\213\206\64\314\21\0\305\16\346\361eC\222"
-  "\306sZ\31r\62\0\306\14\346\361eC\222\366<\344T\0\307\15\346\361\3C\222\366<di\30\2"
-  "\310\17\346\361\304\341\220\244\351\20\245\361\220S\1\311\17\346\361\205\341\220\244\351\20\245\361\220S\1\312\20"
-  "\346\361\3C\222\246C\224\226\207\64\314\21\0\313\17\346\361\324\241!I\323!J\343!\247\2\314\13\346"
-  "\361\304\341\230v\334\311\0\315\13\346\361\205\341\230v\334\311\0\316\14\346q\205I\66\246\35w\62\0\317"
-  "\13\346\361\324\241\61\355\270\223\1\320\15\346\361\3[\324\262D}\332\311\0\321\20\346\361EIV\221\22"
-  ")\351'%\322\251\0\322\20\346\361\304\341\224%Y\222%Y\222E;\31\323\20\346\361\205\341\224%Y"
-  "\222%Y\222E;\31\324\21\346q\205I\66eI\226dI\226d\321N\6\325\22\346\361DI\242M"
-  "Y\222%Y\222%Y\264\223\1\326\21\346\361\324\241)K\262$K\262$\213v\62\0\327\14\346\361S"
-  "\243L\324\242\234\33\0\330\20\346qFS\226DJ_\244$\213\246\234\6\331\21\346\361\304Y%K\262"
-  "$K\262$\213\206\234\12\332\21\346\361\205Y%K\262$K\262$\213\206\234\12\333\23\346q\205I\224"
-  "%Y\222%Y\222%Y\64\344T\0\334\22\346\361\324\221,\311\222,\311\222,\311\242!\247\2\335\17"
-  "\346\361\205Y%K\262hH+CN\6\336\21\346\361\243\351\20eI\226dI\226\14QN\3\337\17"
-  "\346\361\3Z\324%\213j\211\224$:\31\340\20\346q\305\71\64GC\222%Y\64\344T\0\341\20\346"
-  "\361\205\71\66GC\222%Y\64\344T\0\342\11\346\361Ca\235\337\0\343\21\346\361DI\242Cs\64"
-  "$Y\222ECN\5\344\20\346\361\3I\16\315\321\220dI\26\15\71\25\345\20\346q\205I\30\316\321"
-  "\220dI\26\15\71\25\346\15\346\361Ca\70$i\363\220S\1\347\15\346\361S\207$m\36\262\64\14"
-  "\1\350\20\346q\305\71\64$Y\222%\203\22\17\71\25\351\20\346\361\205\71\66$Y\222%\203\22\17\71"
-  "\25\352\20\346\361S\207$K\262dP\342!\254C\0\353\21\346\361\3I\16\15I\226d\311\240\304C"
-  "N\5\354\13\346q\305\71\244v\325\311\0\355\13\346\361\205\71\246v\325\311\0\356\14\346q\205I\16\251"
-  "]u\62\0\357\14\346\361\3I\16\251]u\62\0\360\21\346q$a%\234\262$K\262$\213v\62"
-  "\0\361\21\346\361\205\71\64DY\222%Y\222%YN\5\362\20\346q\305\71\64eI\226dI\26\355"
-  "d\0\363\20\346\361\205\71\66eI\226dI\26\355d\0\364\20\346q\205I\16MY\222%Y\222E"
-  ";\31\365\21\346\361c\222\222HI\226dI\66\15\221N\4\366\20\346\361\3I\16MY\222%Y\222"
-  "E;\31\367\13\346\361\223sh\320\241\234\31\370\17\346\361\223\242)RZ\244$\213\246\234\6\371\21\346"
-  "q\305\71\222%Y\222%Y\222ECN\5\372\21\346\361\205\71\224%Y\222%Y\222ECN\5\373"
-  "\22\346q\205I\216dI\226dI\226d\321\220S\1\374\22\346\361\3I\216dI\226dI\226d\321"
-  "\220S\1\375\23\346\361\205\71\224%Y\222%Y\222ECZ\31\42\0\376\22\346q\247\351\20eI\226"
-  "dI\226\14Q\232\203\0\377\23\346\361\3I\216dI\226dI\226d\321\220V\206\10\0\0\0\4\377"
-  "\377\0";
+  "\6\341\311\243\0\236\21\346\361#%i\210\6eP\206(\221*\71\25\237\15\346\361\205\71\64\250a\343"
+  "\240S\1\240\7\346\361\363\237\0\241\23\346\361\3S\226dI\226\14J\226dI\26\306\71\0\242\21\346"
+  "\361\23\302!\251%Y\222%\341\220\345\24\0\243\14\346q\247-\231\230\306CN\5\244\22\346\361\3S"
+  "\226dI\226\14J\226dI\26\346\4\245\22\346\361\3S\226dI\226\14J\226dI\26\346\4\246\16"
+  "\346\361eC\222\306sZ\31r\62\0\247\17\346\361#Z\224\245Z\324\233\232E\231\4\250\11\346\361\3"
+  "I\316\237\1\251\21\346\361\3C\22J\211\22)\221bL\206\234\12\252\15\346\361#r\66\325vd\310"
+  "\31\1\253\17\346\361\223\243$J\242\266(\213r\42\0\254\14\346qe\203T\354\232\16:\25\255\10\346"
+  "\361s\333y\3\256\21\346\361\3C\22*\226d\261$c\62\344T\0\257\14\346qe\203\32vM\7"
+  "\235\12\260\12\346\361#Z\324\246\363\11\261\20\346\361S\347hH\262$\213\206\64\314\21\0\262\14\346\361"
+  "#Z\224\206\305!\347\6\263\13\346\361\3i\252\251\315:\31\264\11\346\361Ca\235\337\0\265\14\346\361"
+  "\23\243\376i\251\346 \0\266\16\346\361\205\71\66$\361\234&CN\6\267\10\346\361s\314y\4\270\11"
+  "\346\361\363\207\64\14\1\271\20\346\361S\347hH\262$\213\206\64\314\21\0\272\15\346\361#Z\324\233\16"
+  "\15\71#\0\273\17\346\361\23\243,\312\242\226(\211r\62\0\274\15\346\361\205\71\64\250a\343\240S\1"
+  "\275\17\346\361\204j-\211\302\26\245\24\26\207\0\276\21\346\361hQ\30'\222\64\206ZR\33\302\64\1"
+  "\277\15\346\361#\71\64\250a\343\240S\1\300\21\346\361\304\341\224%Y\62(Y\222%YN\5\301\21"
+  "\346\361\205\341\224%Y\62(Y\222%YN\5\302\22\346q\205I\66eI\226\14J\226dI\226S"
+  "\1\303\23\346\361DI\242MY\222%\203\222%Y\222\345T\0\304\20\346\361S\347hH\262$\213\206"
+  "\64\314\21\0\305\16\346\361eC\222\306sZ\31r\62\0\306\14\346\361eC\222\366<\344T\0\307\15"
+  "\346\361\3C\222\366<di\30\2\310\17\346\361\304\341\220\244\351\20\245\361\220S\1\311\17\346\361\205\341"
+  "\220\244\351\20\245\361\220S\1\312\20\346\361\3C\222\246C\224\226\207\64\314\21\0\313\17\346\361\324\241!"
+  "I\323!J\343!\247\2\314\13\346\361\304\341\230v\334\311\0\315\13\346\361\205\341\230v\334\311\0\316\14"
+  "\346q\205I\66\246\35w\62\0\317\13\346\361\324\241\61\355\270\223\1\320\15\346\361\3[\324\262D}\332"
+  "\311\0\321\20\346\361EIV\221\22)\351'%\322\251\0\322\20\346\361\304\341\224%Y\222%Y\222E"
+  ";\31\323\20\346\361\205\341\224%Y\222%Y\222E;\31\324\21\346q\205I\66eI\226dI\226d"
+  "\321N\6\325\22\346\361DI\242MY\222%Y\222%Y\264\223\1\326\21\346\361\324\241)K\262$K"
+  "\262$\213v\62\0\327\14\346\361S\243L\324\242\234\33\0\330\20\346qFS\226DJ_\244$\213\246"
+  "\234\6\331\21\346\361\304Y%K\262$K\262$\213\206\234\12\332\21\346\361\205Y%K\262$K\262$"
+  "\213\206\234\12\333\23\346q\205I\224%Y\222%Y\222%Y\64\344T\0\334\22\346\361\324\221,\311\222"
+  ",\311\222,\311\242!\247\2\335\17\346\361\205Y%K\262hH+CN\6\336\21\346\361\243\351\20e"
+  "I\226dI\226\14QN\3\337\17\346\361\3Z\324%\213j\211\224$:\31\340\20\346q\305\71\64G"
+  "C\222%Y\64\344T\0\341\20\346\361\205\71\66GC\222%Y\64\344T\0\342\11\346\361Ca\235\337"
+  "\0\343\21\346\361DI\242Cs\64$Y\222ECN\5\344\20\346\361\3I\16\315\321\220dI\26\15"
+  "\71\25\345\20\346q\205I\30\316\321\220dI\26\15\71\25\346\15\346\361Ca\70$i\363\220S\1\347"
+  "\15\346\361S\207$m\36\262\64\14\1\350\20\346q\305\71\64$Y\222%\203\22\17\71\25\351\20\346\361"
+  "\205\71\66$Y\222%\203\22\17\71\25\352\20\346\361S\207$K\262dP\342!\254C\0\353\21\346\361"
+  "\3I\16\15I\226d\311\240\304CN\5\354\13\346q\305\71\244v\325\311\0\355\13\346\361\205\71\246v"
+  "\325\311\0\356\14\346q\205I\16\251]u\62\0\357\14\346\361\3I\16\251]u\62\0\360\21\346q$"
+  "a%\234\262$K\262$\213v\62\0\361\21\346\361\205\71\64DY\222%Y\222%YN\5\362\20\346"
+  "q\305\71\64eI\226dI\26\355d\0\363\20\346\361\205\71\66eI\226dI\26\355d\0\364\20\346"
+  "q\205I\16MY\222%Y\222E;\31\365\21\346\361c\222\222HI\226dI\66\15\221N\4\366\20"
+  "\346\361\3I\16MY\222%Y\222E;\31\367\13\346\361\223sh\320\241\234\31\370\17\346\361\223\242)"
+  "RZ\244$\213\246\234\6\371\21\346q\305\71\222%Y\222%Y\222ECN\5\372\21\346\361\205\71\224"
+  "%Y\222%Y\222ECN\5\373\22\346q\205I\216dI\226dI\226d\321\220S\1\374\22\346\361"
+  "\3I\216dI\226dI\226d\321\220S\1\375\23\346\361\205\71\224%Y\222%Y\222ECZ\31\42"
+  "\0\376\22\346q\247\351\20eI\226dI\226\14Q\232\203\0\377\23\346\361\3I\216dI\226dI\226"
+  "d\321\220V\206\10\0\0\0\4\377\377\0";
 
+  
 // Ikona karty SD wyswietlana przy braku karty podczas startu
 static unsigned char sdcard[] PROGMEM = {
   0xf0, 0xff, 0xff, 0x0f, 0xf8, 0xff, 0xff, 0x1f, 0xf8, 0xcf, 0xf3, 0x3f,
@@ -1927,10 +1937,9 @@ void stationStringFormatting() // Funkcja aktulizaujaca dla scorllera stationStr
     stationStringScrollWidth = stationStringScroll.length() * 6;
     Serial.print("### Station String Scroll Width (lenght * 6) [px]:"); Serial.println(stationStringScrollWidth);
 	  
-    Serial.print("debug -> Display0 (VUmeter mode) stationStringScroll: ");
-    Serial.println(stationStringScroll);
-
-
+    Serial.print("debug -> Display Mode-0 stationStringScroll:@");
+    Serial.print(stationStringScroll);
+    Serial.println("@");
 
   }
   else if (displayMode == 1) // Tryb wświetlania zegara z 1 linijką radia na dole
@@ -1959,10 +1968,10 @@ void stationStringFormatting() // Funkcja aktulizaujaca dla scorllera stationStr
       stationStringWeb = stationString;
       processText(stationString);  // przetwarzamy polsie znaki
       stationStringScroll = String(StationNrStr) + "." + stationName + ", " + stationString + "      ";
-      Serial.println(stationStringScroll);
+    //  Serial.println(stationStringScroll);
     }
-	  Serial.print("debug -> Display1 (zegar) stationStringScroll: ");
-    Serial.println(stationStringScroll);
+	  //Serial.print("debug -> Display1 (zegar) stationStringScroll: ");
+    //Serial.println(stationStringScroll);
 
     //Liczymy długość napisu stationStringScrollWidth 
     stationStringScrollWidth = stationStringScroll.length() * 6;
@@ -1992,11 +2001,48 @@ void stationStringFormatting() // Funkcja aktulizaujaca dla scorllera stationStr
 
    
   }
+  else if (displayMode == 3) // Tryb wświetlania mode 3
+  {
+    //int StationNameEnd = stationName.indexOf("  "); // Wycinamy nazwe stacji tylko do miejsca podwojnej spacji 
+    //stationName = stationName.substring(0, StationNameEnd);
+
+    if (stationString == "") // Jeżeli stationString jest pusty i stacja go nie nadaje to podmieniamy pusty stationString na nazwę staji - stationNameStream
+    {    
+      if (stationNameStream == "") // jezeli nie ma równiez stationName to wstawiamy 3 kreseczki
+      { 
+        stationStringScroll = "---" ;
+        stationStringWeb = "---" ;
+      } 
+      else // jezeli jest station name to oprawiamy w "-- NAZWA --" i wysylamy do scrollera
+      { 
+        stationStringScroll = ("-- " + stationNameStream + " --");
+        stationStringWeb = ("-- " + stationNameStream + " --");
+      }  // Zmienna stationStringScroller przyjmuje wartość stationNameStream
+    }
+    else // Jezeli stationString zawiera dane to przypisujemy go do stationStringScroll do funkcji scrollera
+    {
+      stationStringWeb = stationString;
+      processText(stationString);  // przetwarzamy polsie znaki
+      stationStringScroll = "  " + stationString + "  " ; // Nie dodajemy separator do tekstu aby wyswietlał się rowno na srodku
+    }             
+    //Liczymy długość napisu stationStringScroll 
+    stationStringScrollWidth = stationStringScroll.length() * 6;
+    //Serial.print("debug -> Display Mode-3 stationStringScroll:@");
+    //Serial.print(stationStringScroll);
+    //Serial.println("@");
+  }
 }
 
 // Obsługa wyświetlacza dla odtwarzanego strumienia radia internetowego
 void displayRadio() 
 {
+  // Serial.print("StationName:@");
+  // Serial.print(stationName.substring(0, stationNameLenghtCut));
+  // Serial.println("@");
+    
+  int StationNameEnd = stationName.indexOf("  "); // Wycinamy nazwe stacji tylko do miejsca podwojnej spacji 
+  stationName = stationName.substring(0, StationNameEnd);
+
   if (displayMode == 0)
   {
     u8g2.clearBuffer();
@@ -2095,49 +2141,73 @@ void displayRadio()
   }
   else if (displayMode == 3) // Tryb wświetlania mode 3 - linijka statusu (stacja, bank godzina) na gorze i na dole (format stream, wifi zasieg)
   {
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_fub14_tf);
-    u8g2.drawStr(24, 16, stationName.substring(0, stationNameLenghtCut - 1).c_str());
-    u8g2.drawRBox(1, 1, 21, 16, 4);  // Rbox pod numerem stacji
     
-    // Funkcja wyswietlania numeru Banku na dole ekranu
+    u8g2.clearBuffer();
     u8g2.setFont(spleen6x12PL);
+    //u8g2.setFont(u8g2_font_04b_03_tr);
+    //u8g2.drawStr(209,10, "STATION:");
+    u8g2.drawStr(0,10, "BANK:");
+    u8g2.drawStr(98,10, "STATION:");
+    u8g2.drawGlyph(181,10, 0x9E);
+    u8g2.drawStr(190,10, String(volumeValue).c_str());
+
+    // Funkcja wyswietlania numeru Banku
     char BankStr[8];  
-    snprintf(BankStr, sizeof(BankStr), "Bank%02d", bank_nr); // Formatujemy numer banku do postacji 00
-
-    // Wyswietlamy numer Banku w dolnej linijce
-    u8g2.drawBox(154, 54, 1, 12);  // dorysowujemy 1px pasek przed napisem "Bank" dla symetrii
-    u8g2.setDrawColor(0);
-    u8g2.setCursor(155, 63);  // Pozycja napisu Bank0x na dole ekranu
+    snprintf(BankStr, sizeof(BankStr), "%02d", bank_nr); // Formatujemy numer banku do postacji 00
+    //u8g2.setCursor(24, 10);  // Pozycja napisu Bank0x na gorze ekranu
+    u8g2.setCursor(30, 10);  // Pozycja napisu Bank0x na gorze ekranu
     u8g2.print(BankStr);
+    
+    //u8g2.drawStr(13,10, "-");
 
-
-    u8g2.setDrawColor(0);
-    u8g2.setFont(u8g2_font_spleen8x16_mr);
     char StationNrStr[3];
     snprintf(StationNrStr, sizeof(StationNrStr), "%02d", station_nr);  //Formatowanie informacji o stacji i banku do postaci 00
-    u8g2.setCursor(4, 14);                                            // Pozycja numeru stacji na gorze po lewej ekranu
+    //u8g2.setCursor(245, 10);                                            // Pozycja numeru stacji na gorze po lewej ekranu
+    u8g2.setCursor(146, 10);                                            // Pozycja numeru stacji na gorze po lewej ekranu
+    //u8g2.setCursor(0, 10);                                            // Pozycja numeru stacji na gorze po lewej ekranu
     u8g2.print(StationNrStr);
-    u8g2.setDrawColor(1);
     
-    u8g2.setFont(spleen6x12PL);
-        
+    //u8g2.drawLine(0,13,63,13);
+    //u8g2.drawLine(190,13,256,13);
+    //u8g2.drawLine(63,13,68,0);
+    //u8g2.drawLine(182,0,190,13);
+
+    u8g2.setFont(u8g2_font_helvB14_tr);
+    int stationNameWidth = u8g2.getStrWidth(stationName.substring(0, stationNameLenghtCut).c_str()); // Liczy pozycje aby wyswietlic stationName na środku
+    int stationNamePositionX = (256 - stationNameWidth) / 2;
+    
+    u8g2.drawStr(stationNamePositionX, stationNamePositionYmode3, stationName.substring(0, stationNameLenghtCut).c_str()); // Przyciecie i wyswietlenie dzieki temu nie zmieniamy zawartosci zmiennej stationName
+
+    //Serial.print("Station Name:@");
+    //Serial.print(stationName.substring(0, stationNameLenghtCut));
+    //Serial.println("@");
+
     stationStringFormatting(); //Formatujemy stationString wyswietlany przez funkcję Scrollera
 
-    u8g2.drawLine(0, 52, 255, 52);
+    //u8g2.drawLine(0, 55, 255, 55);
     
     // Przeliczamy Hz na kHz
-    int SampleRate = sampleRateString.toInt();
-    int SampleRateRest = SampleRate % 1000;
-    SampleRateRest = SampleRateRest / 100;
-    SampleRate = SampleRate / 1000;
+    //int SampleRate = sampleRateString.toInt();
+    //int SampleRateRest = SampleRate % 1000;
+    //SampleRateRest = SampleRateRest / 100;
+    //SampleRate = SampleRate / 1000;
     
-    String displayString = String(SampleRate) + "." + String(SampleRateRest) + "kHz " + bitsPerSampleString + "bit " + bitrateString + "kbps";
+    //String displayString = String(SampleRate) + "." + String(SampleRateRest) + "kHz " + bitsPerSampleString + "bit " + bitrateString + "k";
+    
+    /*
+    String displayString = bitrateString + "k";
     u8g2.setFont(u8g2_font_04b_03_tr);
-    u8g2.drawStr(0, 63, displayString.c_str());
+    u8g2.drawStr(235, 63, displayString.c_str());
+    */
+    u8g2.setFont(spleen6x12PL);
+  }
+  else if (displayMode == 4)
+  {
+    u8g2.clearBuffer();
+    u8g2.setFont(spleen6x12PL);
   }
 }
-
+// /*
 void audio_info(const char *info) 
 {
   // Wyświetl informacje w konsoli szeregowej
@@ -2230,14 +2300,10 @@ void audio_showstreamtitle(const char *info) {
   stationString = String(info);
   
   ActionNeedUpdateTime = true;
-  //if ((volumeSet == false) && (bankMenuEnable == false) && (listedStations == false) && (rcInputDigitsMenuEnable == false) && (equalizerMenuEnable == false))
-  //if (displayActive == false)
-  //{
-    audioInfoRefresh = true;
-    wsAudioRefresh = true;
-  //}
- 
+  audioInfoRefresh = true;
+  wsAudioRefresh = true;
 }
+
 void audio_commercial(const char *info) {
   Serial.print("commercial  ");
   Serial.println(info);
@@ -2261,6 +2327,140 @@ void audio_eof_speech(const char *info) {
     resumePlay = false;
   }
 }
+// */
+
+
+/*
+// Obsługa callbacka info o audio
+void my_audio_info(Audio::msg_t m)
+{
+  switch(m.e)
+  {
+    case Audio::evt_info:  
+    {
+      String msg = String(m.msg);   // zamiana na String
+      msg.trim(); // usuń spacje i \r\n
+
+      // --- BitRate ---
+      int bitrateIndex = msg.indexOf("BitRate:");
+      if (bitrateIndex != -1)
+      {
+        int endIndex = msg.indexOf('\n', bitrateIndex);
+        if (endIndex == -1) endIndex = msg.length();
+        bitrateString = msg.substring(bitrateIndex + 8, endIndex);
+        bitrateString.trim();
+
+        // przliczenie bps na Kbps
+        bitrateStringInt = bitrateString.toInt();  
+        bitrateStringInt = bitrateStringInt / 1000;
+        bitrateString = String(bitrateStringInt);
+            
+        audioInfoRefresh2 = true;
+        wsAudioRefresh = true;  //Web Socket - audio refresh
+        
+      }
+
+      // --- SampleRate ---
+      int sampleRateIndex = msg.indexOf("SampleRate:");
+      if (sampleRateIndex != -1)
+      {
+        int endIndex = msg.indexOf('\n', sampleRateIndex);
+        if (endIndex == -1) endIndex = msg.length();
+        sampleRateString = msg.substring(sampleRateIndex + 11, endIndex);
+        sampleRateString.trim();
+      }
+
+      // --- BitsPerSample ---
+      int bitsPerSampleIndex = msg.indexOf("BitsPerSample:");
+      if (bitsPerSampleIndex != -1)
+      {
+        int endIndex = msg.indexOf('\n', bitsPerSampleIndex);
+        if (endIndex == -1) endIndex = msg.length();
+        bitsPerSampleString = msg.substring(bitsPerSampleIndex + 15, endIndex);
+        bitsPerSampleString.trim();
+      }
+    
+      // --- Rozpoznawanie dekodera / formatu ---
+      if (msg.indexOf("MP3Decoder") != -1)
+      {
+        mp3 = true; 
+        flac = false; aac = false; vorbis = false;
+	    }
+      if (msg.indexOf("FLACDecoder") != -1)
+      {
+        flac = true; 
+        mp3 = false; aac = false; vorbis = false;
+      }
+      if (msg.indexOf("AACDecoder") != -1)
+      {
+        aac = true;
+        flac = false; mp3 = false; vorbis = false;
+      }
+      if (msg.indexOf("VORBISDecoder") != -1)
+      {
+        vorbis = true;
+        aac = false; flac = false; mp3 = false;
+      }
+
+      // --- Debug ---
+      Serial.printf("info: ....... %s\n", m.msg);
+    }
+      break;
+
+
+    case Audio::evt_eof:
+    {
+      Serial.printf("end of file:  %s\n", m.msg);
+      //fileEnd = true;
+    }
+      break;
+
+    case Audio::evt_bitrate:        Serial.printf("bitrate: .... %s\n", m.msg); break; // icy-bitrate or bitrate from metadata
+    case Audio::evt_icyurl:         Serial.printf("icy URL: .... %s\n", m.msg); break;
+    case Audio::evt_id3data:
+    {
+      Serial.printf("ID3 data: ... %s\n", m.msg);
+      //String msg = String(m.msg);
+      //msg.trim(); // usuń spacje i \r\n
+    }
+    break;
+
+
+    case Audio::evt_lasthost:       Serial.printf("last URL: ... %s\n", m.msg); break;
+    case Audio::evt_name:           
+	  {
+      Serial.printf("station name: %s\n", m.msg); break; // station name or icy-name
+      stationNameStream = info; 
+      if ((bank_nr == 0) || (stationNameFromStream)) stationName = String(info); // Jesli gramy z ze strony WEB URL lub flaga stationNameFromStream=1 to odczytujemy nazwe stacji ze streamu nie z pliku banku
+
+      audioInfoRefresh = true;
+      wsAudioRefresh = true;
+	  }
+    case Audio::evt_streamtitle:
+    {
+      // Zapisz tytuł stacji/utworu
+      stationString = String(m.msg);
+		  //stationInfo = String(m.msg);
+      stationString.trim();
+		
+      ActionNeedUpdateTime = true;
+      audioInfoRefresh = true;	
+      wsAudioRefresh = true;
+
+      // Debug
+      Serial.printf("stream title: %s\n", m.msg);
+    }
+    break;
+    case Audio::evt_icylogo:        Serial.printf("icy logo: ... %s\n", m.msg); break;
+    case Audio::evt_icydescription: Serial.printf("icy descr: .. %s\n", m.msg); break;
+    case Audio::evt_image: for(int i = 0; i < m.vec.size(); i += 2)
+      { Serial.printf("cover image:  segment %02i, pos %07lu, len %05lu\n", i / 2, m.vec[i], m.vec[i + 1]);} break; // APIC
+    case Audio::evt_lyrics:         Serial.printf("sync lyrics:  %s\n", m.msg); break;
+    case Audio::evt_log   :         Serial.printf("audio_logs:   %s\n", m.msg); break;
+    default:                        Serial.printf("message:..... %s\n", m.msg); break;
+  }
+}
+*/
 
 void encoderFunctionOrderChange()
 {
@@ -3026,30 +3226,19 @@ void updateTimer()
   {
     if ((audio.isRunning() == true) && (displayMode == 0) || (displayMode == 2)) 
     {
-      if (mp3 == true) {
-        u8g2.drawStr(135, 63, "MP3");
-        //Serial.println("Gram MP3");
-      }
-      if (flac == true) {
-        u8g2.drawStr(135, 63, "FLAC");
-        //Serial.println("Gram FLAC");
-      }
-      if (aac == true) {
-        u8g2.drawStr(135, 63, "AAC");
-        //Serial.println("Gram AAC");
-      }
-      if (vorbis == true) {
-        u8g2.drawStr(135, 63, "VBR");
-        //Serial.println("Gram AAC");
-      }
+      if (mp3 == true) {u8g2.drawStr(135, 63, "MP3");}
+      if (flac == true) {u8g2.drawStr(135, 63, "FLAC");}
+      if (aac == true) {u8g2.drawStr(135, 63, "AAC");}
+      if (vorbis == true) {u8g2.drawStr(135, 63, "VBR");}
     }
     else if ((audio.isRunning() == true) && (displayMode == 3)) 
     {
-      u8g2.setFont(u8g2_font_04b_03_tr);
-      if (mp3 == true)  {u8g2.drawStr(113, 63, "MP3");}
-      if (flac == true) {u8g2.drawStr(113, 63, "FLAC");}
-      if (aac == true)  {u8g2.drawStr(113, 63, "AAC");}
-      if (vorbis == true) {u8g2.drawStr(113, 63, "VBR");}
+     /* u8g2.setFont(u8g2_font_04b_03_tr);
+      if (mp3 == true)  {u8g2.drawStr(235, 56, "MP3");}
+      if (flac == true) {u8g2.drawStr(235, 56, "FLAC");}
+      if (aac == true)  {u8g2.drawStr(235, 56, "AAC");}
+      if (vorbis == true) {u8g2.drawStr(235, 56, "VBR");}
+     */
     }
 
     if ((timeDisplay == true) && (audio.isRunning() == true))
@@ -3140,7 +3329,8 @@ void updateTimer()
         if (showDots) snprintf(timeString, sizeof(timeString), "%2d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
         else snprintf(timeString, sizeof(timeString), "%2d %02d", timeinfo.tm_hour, timeinfo.tm_min);
         u8g2.setFont(spleen6x12PL);
-        u8g2.drawStr(208, 63, timeString);
+        //u8g2.drawStr(113, 11, timeString);
+        u8g2.drawStr(226, 10, timeString);
       }
 
       //u8g2.sendBuffer(); // nie piszemy po ekranie w tej funkcji tylko przygotowujemy bufor. Nie mozna pisac podczas pracy scrollera
@@ -3166,15 +3356,17 @@ void updateTimer()
       
       if ((displayMode == 0) || (displayMode == 2)) { u8g2.drawStr(0, 63, "                         ");}
       if (displayMode == 1) { u8g2.drawStr(0, 33, "                         ");}
+      if (displayMode == 3) { u8g2.drawStr(53, 62, "                         ");} //yPositionDisplayScrollerMode3
 
       if (millis() - lastCheckTime >= 1000)
       {
         if ((displayMode == 0) || (displayMode == 2)) { u8g2.drawStr(0, 63, "... No audio stream ! ...");}
         if (displayMode == 1) { u8g2.drawStr(0, 33, "... No audio stream ! ...");}
+        if (displayMode == 3) { u8g2.drawStr(53, 62 , "... No audio stream ! ...");}
         lastCheckTime = millis(); // Zaktualizuj czas ostatniego sprawdzenia
       }       
-      u8g2.drawStr(226, 63, timeString);
-
+      if ((displayMode == 0) || (displayMode == 1) || (displayMode == 2)) { u8g2.drawStr(226, 63, timeString);}
+      if (displayMode == 3) { u8g2.drawStr(226, 10, timeString);}
     }
   }
 }
@@ -3352,7 +3544,7 @@ void vuMeter()
   vuMeterL = min(audio.getVUlevel() >> 8, 250);  // z wyzszej polowki wyciagamy kanal P
 
 
- if (vuSmooth)
+  if (vuSmooth)
   {
     // LEFT
     if (vuMeterL > displayVuL) 
@@ -3479,8 +3671,8 @@ void vuMeter()
     if (vuSmooth)
     {
       u8g2.setDrawColor(0);
-      u8g2.drawBox(0, vuLy, 256, 3);  //czyszczenie ekranu pod VU meter
-      u8g2.drawBox(0, vuRy, 256, 3);
+      u8g2.drawBox(7, vuLy, 256, 3);  //czyszczenie ekranu pod VU meter
+      u8g2.drawBox(7, vuRy, 256, 3);
       u8g2.setDrawColor(1);
 
       // Biale pola pod literami L i R
@@ -3531,8 +3723,8 @@ void vuMeter()
     else
     {
       u8g2.setDrawColor(0);
-      u8g2.drawBox(0, vuLy, 256, 3);  //czyszczenie ekranu pod VU meter
-      u8g2.drawBox(0, vuRy, 256, 3);
+      u8g2.drawBox(7, vuLy, 256, 3);  //czyszczenie ekranu pod VU meter
+      u8g2.drawBox(7, vuRy, 256, 3);
       u8g2.setDrawColor(1);
 
       // Biale pola pod literami L i R
@@ -3578,6 +3770,246 @@ void vuMeter()
   }  // moute off
 }
 
+void vuMeterMode3() 
+{
+  // Pobranie poziomu VU
+  vuMeterR = min(audio.getVUlevel() & 0xFF, 255);
+  vuMeterL = min(audio.getVUlevel() >> 8, 255);
+
+  vuMeterR = map(vuMeterR, 0, 255, 0, 128);
+  vuMeterL = map(vuMeterL, 0, 255, 0, 128);
+
+  // Wygładzanie
+  if (vuSmooth)
+  {
+    if (vuMeterL > displayVuL) {
+      displayVuL += vuRiseSpeed;
+      if (displayVuL > vuMeterL) displayVuL = vuMeterL;
+    } else {
+      if (displayVuL > vuFallSpeed) {
+        displayVuL -= vuFallSpeed;
+      } else {
+        displayVuL = 0;
+      }
+    }
+
+    if (vuMeterR > displayVuR) {
+      displayVuR += vuRiseSpeed;
+      if (displayVuR > vuMeterR) displayVuR = vuMeterR;
+    } else {
+      if (displayVuR > vuFallSpeed) {
+        displayVuR -= vuFallSpeed;
+      } else {
+        displayVuR = 0;
+      }
+    }
+  }
+
+  // Peak & Hold
+  if (vuPeakHoldOn)
+  {
+    // LEFT
+    if ((vuSmooth ? displayVuL : vuMeterL) >= peakL) {
+      peakL = vuSmooth ? displayVuL : vuMeterL;
+      peakHoldTimeL = 0;
+    } else {
+      if (peakHoldTimeL < peakHoldThreshold) {
+        peakHoldTimeL++;
+      } else if (peakL > 0) {
+        peakL--;
+      }
+    }
+
+    // RIGHT
+    if ((vuSmooth ? displayVuR : vuMeterR) >= peakR) {
+      peakR = vuSmooth ? displayVuR : vuMeterR;
+      peakHoldTimeR = 0;
+    } else {
+      if (peakHoldTimeR < peakHoldThreshold) {
+        peakHoldTimeR++;
+      } else if (peakR > 0) {
+        peakR--;
+      }
+    }
+  }
+
+  if (!volumeMute)
+  {
+    // Czyszczenie linii VU
+    u8g2.setDrawColor(0);
+    u8g2.drawBox(0, vuYmode3, 240, vuThicknessMode3);
+    u8g2.setDrawColor(1);
+
+    /*
+    // Biale pola pod literami L i R
+    u8g2.drawBox(vuCenterXmode3 - 3, vuYmode3 - 3, 7, 7);  
+    u8g2.drawBox(vuCenterXmode3 + 3, vuYmode3- 3, 7, 7);  
+
+    // Rysujemy litery L i R
+    u8g2.setDrawColor(0);
+    u8g2.setFont(u8g2_font_04b_03_tr);
+    u8g2.drawStr(vuCenterXmode3 - 3, vuYmode3 + 1, "L");
+    u8g2.drawStr(vuCenterXmode3 + 3, vuYmode3 + 1, "R");
+    u8g2.setDrawColor(1);  // Przywracamy białe rysowanie
+    */
+
+    // Wybór wartości do rysowania: wygładzone lub surowe
+    int leftLevel = vuSmooth ? displayVuL : vuMeterL;
+    int rightLevel = vuSmooth ? displayVuR : vuMeterR;
+
+    // Rysowanie LEWEGO kanału - od środka w lewo
+    for (int i = 0; i < leftLevel; i++) {
+      if ((i % 9) < 8) {  // 8px kreska + 1px przerwa
+        int x = vuCenterXmode3 - 2 - i;  // -1 żeby nie nakładać się na środek
+        if (x >= 0) u8g2.drawBox(x, vuYmode3, 1, vuThicknessMode3);
+      }
+    }
+
+    // Rysowanie PRAWEGO kanału - od środka w prawo
+    for (int i = 0; i < rightLevel; i++) {
+      if ((i % 9) < 8) {
+        int x = vuCenterXmode3 + 2 + i;
+        if (x < 240) u8g2.drawBox(x, vuYmode3, 1, vuThicknessMode3);
+      }
+    }
+
+    // Rysowanie PEAKÓW
+    if (vuPeakHoldOn) {
+      int peakLeftX = vuCenterXmode3 - 1 - peakL;
+      int peakRightX = vuCenterXmode3 + peakR;
+      if (peakLeftX >= 0) u8g2.drawBox(peakLeftX, vuYmode3, 1, vuThicknessMode3);
+      if (peakRightX < 240) u8g2.drawBox(peakRightX, vuYmode3, 1, vuThicknessMode3);
+    }
+  }
+}
+
+void vuMeterMode4() // Mode4 eksperymetn z duzymi wskaznikami VU
+{
+  // Pobranie poziomów VU (0–255)
+  uint8_t rawL = audio.getVUlevel() >> 8;
+  uint8_t rawR = audio.getVUlevel() & 0xFF;
+
+  // Skalowanie do 0–100
+  int vuL = map(rawL, 0, 255, 0, 100);
+  int vuR = map(rawR, 0, 255, 0, 100);
+
+  // Bezwładność analogowa
+  if (vuSmooth) {
+    // Lewy
+    if (vuL > displayVuL) {
+      displayVuL += max(1, (vuL - displayVuL) / vuRiseNeedleSpeed);  // szybciej w górę
+    } else if (vuL < displayVuL) {
+      displayVuL -= max(1, (displayVuL - vuL) / vuFallNeedleSpeed); // wolniej w dół
+    }
+
+    // Prawy
+    if (vuR > displayVuR) {
+      displayVuR += max(1, (vuR - displayVuR) / vuRiseNeedleSpeed);
+    } else if (vuR < displayVuR) {
+      displayVuR -= max(1, (displayVuR - vuR) / vuFallNeedleSpeed);
+    }
+
+    displayVuL = constrain(displayVuL, 0, 100);
+    displayVuR = constrain(displayVuR, 0, 100);
+  } else {
+    displayVuL = vuL;
+    displayVuR = vuR;
+  }
+
+  // Parametry wskaźników
+  const int radius = 45;
+  const int frameWidth = 120;
+  const int frameHeight = 60;
+
+  int centerXL = 65;
+  int centerYL = 63;
+
+  int centerXR = 195;
+  int centerYR = 63;
+
+  const int arcStartDeg = -60;
+  const int arcEndDeg = 60;
+
+  // Czyszczenie ekranu
+  u8g2.setDrawColor(0);
+  u8g2.drawBox(0, 0, 256, 64);
+  u8g2.setDrawColor(1);
+  u8g2.setFont(u8g2_font_6x10_tr);
+
+  // Struktura opisów dB
+  struct Mark {
+    int angle;
+    const char* label;
+  };
+
+  const Mark scaleMarks[] = {
+    { -60, "-20" },
+    { -40, "-10" },
+    { -20, "-5"  },
+    {   0,  "0"   },
+    {  20, "+3"  },
+    {  40, "+6"  },
+    {  60, "+9"  },
+  };
+
+  // Funkcja rysująca łuk wskaźnika
+  auto drawVUArc = [&](int cx, int cy, const char* label) 
+  {
+    // Ramka
+    u8g2.drawFrame((cx - frameWidth / 2), cy - radius - 18, frameWidth, frameHeight);
+
+    // Skala łuku
+    for (int a = arcStartDeg; a <= arcEndDeg; a += 6) 
+    {
+      float angle = radians(a);
+      int x1 = cx + sin(angle) * (radius - 4);
+      int y1 = cy - cos(angle) * (radius - 4);
+      int x2 = cx + sin(angle) * radius;
+      int y2 = cy - cos(angle) * radius;
+      u8g2.drawLine(x1, y1, x2, y2);
+    }
+
+    // Opisy dB
+    for (const Mark& m : scaleMarks) 
+    {
+      float angle = radians(m.angle);
+      int tx = cx + sin(angle) * (radius + 10);
+      int ty = cy - cos(angle) * (radius + 10);
+      u8g2.setCursor(tx - 8, ty + 5);
+      u8g2.print(m.label);
+    }
+
+    // Opis kanału (L/R)
+    u8g2.setCursor(cx - 2, cy - 18);
+    u8g2.print(label);
+  };
+
+  // Rysowanie wskaźników L i R
+  drawVUArc(centerXL, centerYL,"L"); //x,y,label (L)
+  drawVUArc(centerXR, centerYR,"R"); //x,y,label (R)
+
+  // Igła lewa
+  float angleL = radians(arcStartDeg + (arcEndDeg - arcStartDeg) * displayVuL / 100.0);
+  int xNeedleL = centerXL + sin(angleL) * (radius - 6);
+  int yNeedleL = centerYL - cos(angleL) * (radius - 6);
+  u8g2.drawLine(centerXL, centerYL - 8, xNeedleL, yNeedleL);
+
+  // Igła prawa
+  float angleR = radians(arcStartDeg + (arcEndDeg - arcStartDeg) * displayVuR / 100.0);
+  int xNeedleR = centerXR + sin(angleR) * (radius - 6);
+  int yNeedleR = centerYR - cos(angleR) * (radius - 6);
+  u8g2.drawLine(centerXR, centerYR - 8, xNeedleR, yNeedleR);
+}
+
+
+
+void showIP(uint16_t xip, uint16_t yip)
+{
+  u8g2.setFont(u8g2_font_04b_03_tr);
+  u8g2.setDrawColor(1);
+  u8g2.drawStr(xip, yip + 3, "IP:");
+  u8g2.drawStr(xip + 12, yip + 3, currentIP.c_str());   //wyswietlenie IP jesli VU meter jest wyłączony i nie jest właczone wyciszenie MUTE
+}
 
 void displayClearUnderScroller() // Funkcja odpwoiedzialna za przewijanie informacji strem tittle lub stringstation
 {
@@ -3586,10 +4018,7 @@ void displayClearUnderScroller() // Funkcja odpwoiedzialna za przewijanie inform
     u8g2.setDrawColor(1);
     u8g2.setFont(spleen6x12PL);
     u8g2.drawStr(0,yPositionDisplayScrollerMode0, "                                           "); //43 spacje - czyszczenie ekranu   
-    //u8g2.setDrawColor(0);
-    //u8g2.drawBox(0,yPositionDisplayScrollerMode0,255,12);
-    //u8g2.setDrawColor(1);
-  } 
+   } 
   else if (displayMode == 1)  // Tryb zegara - Mode 1
   {
     u8g2.drawStr(0,yPositionDisplayScrollerMode1, "                                           "); //43 znaki czyszczenie ekranu
@@ -3601,6 +4030,12 @@ void displayClearUnderScroller() // Funkcja odpwoiedzialna za przewijanie inform
     u8g2.drawStr(0,yPositionDisplayScrollerMode2, "                                           "); //43 znaki czyszczenie ekranu
     u8g2.drawStr(0,yPositionDisplayScrollerMode2 + 12, "                                           "); //43 znaki czyszczenie ekranu
     u8g2.drawStr(0,yPositionDisplayScrollerMode2 + 12 + 12, "                                           "); //43 znaki czyszczenie ekranu
+  }
+  else if (displayMode == 3)  // Tryb mały tekst - Mode 3
+  {
+    u8g2.setDrawColor(1);
+    u8g2.setFont(spleen6x12PL);
+    u8g2.drawStr(0,yPositionDisplayScrollerMode3, "                                           "); //43 spacje - czyszczenie ekranu   
   }
   u8g2.sendBuffer();  // rysujemy całą zawartosc ekranu.  
 }
@@ -3722,6 +4157,32 @@ void displayRadioScroller() // Funkcja odpwoiedzialna za przewijanie informacji 
       u8g2.setFont(spleen6x12PL);
       u8g2.drawStr(0, yPosition, currentLine.c_str());
     }
+  }
+  else if (displayMode == 3)
+  {
+   if (stationStringScroll.length() > maxStationVisibleStringScrollLength) //42 + 4 znaki spacji separatora. Realnie widzimy 42 znaki
+    {    
+      xPositionStationString = offset;
+      u8g2.setFont(spleen6x12PL);
+      u8g2.setDrawColor(1);
+      do {
+        u8g2.drawStr(xPositionStationString, yPositionDisplayScrollerMode3, stationStringScroll.c_str());
+        xPositionStationString = xPositionStationString + stationStringScrollWidth;
+      } while (xPositionStationString < 256);
+      
+      offset = offset - 1;
+      if (offset < (65535 - stationStringScrollWidth)) { 
+        offset = 0;
+      }
+    } else {
+      xPositionStationString = 0;
+      //xPositionStationString = u8g2.getStrWidth(stationStringScroll.c_str());
+      xPositionStationString = (256 - stationStringScrollWidth) / 2;
+           
+      u8g2.setDrawColor(1);
+      u8g2.setFont(spleen6x12PL);    
+      u8g2.drawStr(xPositionStationString, yPositionDisplayScrollerMode3, stationStringScroll.c_str()); 
+    } 
   }
 }
 
@@ -5667,6 +6128,8 @@ void listFiles(String path, String &html)
 
 void setup() 
 {
+  //Audio::audio_info_callback = my_audio_info; // Przypisanie własnej funkcji callback do obsługi zdarzeń i informacji audio
+
   // Inicjalizuj komunikację szeregową (Serial)
   Serial.begin(115200);
   Serial.println("---------- START of Evo Web Radio -----------");
@@ -5959,7 +6422,7 @@ void setup()
     {
       ws.closeAll();
       audio.stopSong();
-          
+      delay(1000);    
       unsigned long now = millis();
       timeDisplay = false;
       displayActive = true;
@@ -6614,6 +7077,7 @@ void loop()
     clearFlags();
     displayRadio();
     u8g2.sendBuffer();
+    currentSelection = station_nr - 1; // Przywracamy zaznaczenie obecnie grajacej stacji
   }
 
  /*---------------------  FUNKCJA PILOT IR  / Obsluga pilota IR w kodzie NEC ---------------------*/ 
@@ -6732,17 +7196,36 @@ void loop()
           saveVolumeOnSD();
           volumeSet = false;
         }
+        
         timeDisplay = false;
         displayActive = true;
-        displayStartTime = millis();
+        displayStartTime = millis();    
+         station_nr = currentSelection + 1;
+
+        if (listedStations == true) {station_nr--; scrollUp();} //station_nr-- tylko jesli już wyswietlany liste stacji;
+        else
+        {        
+          if (currentSelection >= 0)
+          {
+            if (currentSelection < firstVisibleLine) // jezeli obecne zaznaczenie ma wartosc mniejsza niz pierwsza wyswietlana linia
+            {
+              firstVisibleLine = currentSelection;
+            }
+          } 
+          else 
+          {  // Jeśli osiągnięto wartość 0, przejdź do najwyższej wartości
+            if (currentSelection = maxSelection())
+            {
+            firstVisibleLine = currentSelection - maxVisibleLines + 1;  // Ustaw pierwszą widoczną linię na najwyższą
+            }
+          }   
+        }
         
-        station_nr = currentSelection + 1;
-        
-        if (listedStations == true) {station_nr--;}
-        //station_nr--;
         if (station_nr < 1) { station_nr = stationsCount; } // jesli dojdziemy do początku listy stacji to przewijamy na koniec
         
-        scrollUp(); 
+        
+       
+       
         displayStations();
       }
       else if ((ir_code == rcCmdArrowDown) && (volumeSet == false) && (equalizerMenuEnable == true))
@@ -6760,19 +7243,37 @@ void loop()
         }
         timeDisplay = false;
         displayActive = true;
-        displayStartTime = millis();
-        
+        displayStartTime = millis();     
         station_nr = currentSelection + 1;
         
         //station_nr++;
-        if (listedStations == true) {station_nr++;}
+        if (listedStations == true) {station_nr++; scrollDown(); } //station_nr++ tylko jesli już wyswietlany liste stacji;
+        else
+        {        
+          if (currentSelection >= 0)
+          {
+            if (currentSelection < firstVisibleLine) // jezeli obecne zaznaczenie ma wartosc mniejsza niz pierwsza wyswietlana linia
+            {
+              firstVisibleLine = currentSelection;
+            }
+          } 
+          else 
+          {  // Jeśli osiągnięto wartość 0, przejdź do najwyższej wartości
+            if (currentSelection = maxSelection())
+            {
+            firstVisibleLine = currentSelection - maxVisibleLines + 1;  // Ustaw pierwszą widoczną linię na najwyższą
+            }
+          }   
+        }
+        
         if (station_nr > stationsCount) 
 	      {
           station_nr = 1;//stationsCount;
         }
         
-        Serial.println(station_nr);
-        scrollDown(); 
+        //Serial.println(station_nr);
+
+         
         displayStations();
       }    
       else if (ir_code == rcCmdOk)
@@ -6807,11 +7308,12 @@ void loop()
       else if (ir_code == rcCmdKey8) {rcInputKey(8);}     
       else if (ir_code == rcCmdKey9) {rcInputKey(9);}
       else if (ir_code == rcCmdBack) 
-      {  
+      {   
         displayDimmer(0);
         clearFlags();   // Zerujemy wszystkie flagi
         displayRadio(); // Ładujemy erkran radia
         u8g2.sendBuffer(); // Wysyłamy bufor na wyswietlacz
+        currentSelection = station_nr - 1; // Przywracamy zaznaczenie obecnie grajacej stacji
       }
       else if (ir_code == rcCmdMute) 
       {
@@ -6850,7 +7352,7 @@ void loop()
       else if (ir_code == rcCmdSrc) 
       {
         displayMode++;
-        if (displayMode > 2) {displayMode = 0;}
+        if (displayMode > 4) {displayMode = 0;}
         displayRadio();
         //u8g2.sendBuffer();
         clearFlags();
@@ -6858,17 +7360,37 @@ void loop()
       }
       else if (ir_code == rcCmdRed) 
       {     
-       //voiceTime();   
-        //vuMeterMode = !vuMeterMode;
-        vuSmooth = !vuSmooth;
+        //voiceTime();   
+          //vuMeterMode = !vuMeterMode;
+        // vuSmooth = !vuSmooth;
+        //vuMeterOnMode3 = !vuMeterOnMode3;
+        vuMeterOn = !vuMeterOn;
+        displayRadio();
+        clearFlags();
+        ActionNeedUpdateTime = true;
+        /*
+        vuRiseNeedleSpeed++;                  
+        if (vuRiseNeedleSpeed > 10) {vuRiseNeedleSpeed = 1;}
+        Serial.print(" vuRiseNeedleSpeed:");
+        Serial.println(vuRiseNeedleSpeed);
+        Serial.print(" vuFallNeedleSpeed:");
+        Serial.println(vuFallNeedleSpeed);
+        */
       }
       else if (ir_code == rcCmdGreen) 
       {
         //voiceTimeEn();
         //voiceTime();      
         //vuPeakHoldOn = !vuPeakHoldOn;
-        stationNameSwap();
-        
+        //stationNameSwap();
+        /*
+        vuFallNeedleSpeed++;
+        if (vuFallNeedleSpeed > 6) {vuFallNeedleSpeed = 1;}
+        Serial.print(" vuRiseNeedleSpeed:");
+        Serial.println(vuRiseNeedleSpeed);
+        Serial.print(" vuFallNeedleSpeed:");
+        Serial.println(vuFallNeedleSpeed);
+        */
         //stationNameFromStream = !stationNameFromStream;
         //if (stationNameFromStream) stationNameLenghtCut = 40; else stationNameLenghtCut = 24;
 
@@ -6967,6 +7489,7 @@ void loop()
 
         } 
         if ((displayMode == 1) && (volumeMute == false)) {drawSignalPower(244,47,0,1);}
+        if (displayMode == 3) {drawSignalPower(210,10,0,1);}
       }
       
       if ((audioInfoRefresh == true) && (displayActive == false)) // Zmiana streamtitle - wymaga odswiezenia na wyswietlaczu
@@ -6987,18 +7510,24 @@ void loop()
         wsStreamInfoRefresh();
       }
     }
-            
+
+    
+
     if (volumeMute == true)   // Obsługa wyciszenia dzwięku, wprowadzamy napis MUTE na ekran
     {   
       u8g2.setDrawColor(0);
       if (displayMode == 0) {u8g2.drawStr(0,48, "> MUTED <");}
       if (displayMode == 1) {u8g2.drawStr(200,47, "> MUTED <");}
+      if (displayMode == 3) {u8g2.drawStr(101,63, "> MUTED <");}
       u8g2.setDrawColor(1);
     } 
     
     //Rysujmey wskaznik VU jesli flaga rysowania aktywna, mute = 0 i tylko trybie displayMode 0
     if (vuMeterOn == true && displayActive == false && displayMode == 0 && volumeMute == false) {vuMeter();}
-    
+    if (vuMeterOn == true && displayActive == false && displayMode == 3 && volumeMute == false) {vuMeterMode3();}
+    if (vuMeterOn == true && displayActive == false && displayMode == 4 && volumeMute == false) {vuMeterMode4();}
+    if (vuMeterOn == false && displayActive == false && displayMode == 0 && volumeMute == false) {showIP(1,vuRy);}
+        
     if (urlToPlay == true) // Jesli web serwer ustawił flagę "odtwarzaj URL" to uruchamiamy funkcje odtwarzania z adresu URL wysłanego przez strone WWW
     {
       urlToPlay = false;
