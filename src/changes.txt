@@ -1,9 +1,13 @@
-3.19.00
+Changes tracking file for ESP Radio EVO version
+
+3.19.11
 - this is copy of version 3.18.21 with support for new audio i2s library and ESP32 core 
 - support new stream info read
+- new function to feed stream data on OLED display
+- preparation for increase banks numbers
+- code clean
 
-
-Changes tracking file for ESP Radio EVO version
+--------------------------------
 
 3.18.21
 - THIS IS LAST VERSION WORKING ON OLD AUDIO LIBRARY AND ESP32 CORE 
