@@ -37,7 +37,7 @@
 //#include "index.c"            // Testowe kompilowanie kodu strony jako zewnetrzyny plik nagłowkowy H 
 
 // Deklaracja wersji oprogramowania i nazwy hosta widocznego w routerze oraz na ekranie OLED i stronie www
-#define softwareRev "v3.19.33"  // Wersja oprogramowania radia
+#define softwareRev "v3.19.32"  // Wersja oprogramowania radia
 #define hostname "evoradio"   // Definicja nazwy hosta widoczna na zewnątrz
 
 
@@ -228,13 +228,12 @@ uint8_t rcInputDigit2 = 0xFF;      // Druga cyfra w przy wprowadzaniu numeru sta
 
 
 // ---- Zmienne konfiguracji ---- //
-uint16_t configArray[21] = { 0 };
+uint16_t configArray[20] = { 0 };
 uint8_t rcPage = 0;
 uint16_t configRemoteArray[30] = { 0 };   // Tablica przechowująca kody pilota podczas odczytu z pliku
 uint16_t configAdcArray[20] = { 0 };      // Tablica przechowująca wartosci ADC dla przyciskow klawiatury
 bool configExist = true;                  // Flaga okreslajaca czy istnieje plik konfiguracji
 bool f_displayPowerOffClock = true;        // Flaga okreslajaca czy w trybie sleep ma się wyswietlac zegar
-bool f_sleepAfterPowerFail = false;
 
 //const int maxVisibleLines = 5;  // Maksymalna liczba widocznych linii na ekranie OLED
 bool encoderButton2 = false;      // Flaga określająca, czy przycisk enkodera 2 został wciśnięty
@@ -813,8 +812,6 @@ const char config_html[] PROGMEM = R"rawliteral(
   <tr><td>ADC Keyboard Enabled, default:Off</td><td><select name="adcKeyboardEnabled"><option value="1"%S7>On</option><option value="0"%S8>Off</option></select></td></tr>
   <tr><td>Volume Steps 1-21 [Off], 1-42  [On], default:Off</td><td><select name="maxVolumeExt"><option value="1"%S11>On</option><option value="0"%S12>Off</option></select></td></tr>
   <tr><td>Station Name Read From Stream [On-From Stream, Off-From Bank] EXPERIMENTAL</td><td><select name="stationNameFromStream"><option value="1"%S17>On</option><option value="0"%S18>Off</option></select></td></tr>
-  <tr><td>Radio switch to Standby After Power Fail, default:On</td><td><select name="f_sleepAfterPowerFail"><option value="1"%S21>On</option><option value="0"%S22>Off</option></select></td></tr>
-  
   
   <!-- <tr><td>VU Meter Refresh Time (20-100ms)</td><td><input type="number" name="vuMeterRefreshTime" min="15" max="100" value="%D7"></td></tr> -->
   
@@ -948,87 +945,91 @@ const char menu_html[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 const char info_html[] PROGMEM = R"rawliteral(
- <!DOCTYPE HTML>
-<html>
-<head>
-  <link rel='icon' href='/favicon.ico' type='image/x-icon'>
-  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-  <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon.png">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Evo Web Radio</title>
-  <style>
-    html{font-family:Arial;display:inline-block;text-align:center;} 
-    h2{font-size:1.3rem;} 
-    table{border:1px solid black;border-collapse:collapse;margin:10px auto;width:40%;} 
-    th,td{font-size:1rem;border:1px solid gray;padding:8px;text-align:left;} 
-    td:hover{font-weight:bold;} 
-    a{color:black;text-decoration:none;} 
-    body{max-width:1380px;margin:0 auto;padding-bottom:15px;} 
-    .tableSettings{border:2px solid #4CAF50;border-collapse:collapse;margin:10px auto;width:40%;} 
-    .signal-bars{display:inline-block;vertical-align:middle;margin-left:10px;} 
-    .bar{display:inline-block;width:5px;margin-right:2px;background-color:#F2F2F2;height:10px;} 
-    .bar.active{background-color:#4CAF50;} 
-    .about-box{border:2px solid #4CAF50;border-radius:6px;background:#f8fff8;padding:10px 16px;width:40%;margin:15px auto;text-align:left;font-size:0.9rem;line-height:1.4rem;color:#222;} 
-    .about-box h3{color:#2f7a2f;margin-top:0;text-align:center;font-size:1.05rem;} 
-    .about-box a{color:#2b5bb3;text-decoration:none;} 
-    .about-box a:hover{text-decoration:underline;}
-  </style>
-</head>
-<body>
+  <!DOCTYPE HTML>
+  <html>
+  <head>
+    <link rel='icon' href='/favicon.ico' type='image/x-icon'>
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon.png">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Evo Web Radio</title>
+    <style>
+      html {font-family: Arial; display: inline-block; text-align: center;}
+      h2 {font-size: 1.3rem;}
+      table {border: 1px solid black; border-collapse: collapse; margin: 10px auto; width: 40%;}
+      th, td {font-size: 1rem; border: 1px solid gray; padding: 8px; text-align: left;}
+      td:hover {font-weight: bold;}
+      a {color: black; text-decoration: none;}
+	  
+      body {max-width: 1380px; margin:0 auto; padding-bottom: 15px;}
+      .tableSettings {border: 2px solid #4CAF50; border-collapse: collapse; margin: 10px auto; width: 40%;} 
+	  .signal-bars {display: inline-block; vertical-align: middle; margin-left: 10px;}
+	  .bar {display: inline-block; width: 5px; margin-right: 2px; background-color: #F2F2F2; height: 10px;}
+      .bar.active { background-color: #4CAF50;}
+	  
+    </style>
+    </head>
+
+  <body>
   <h2>Evo Web Radio - Info</h2>
-
-  <div class="about-box">
-    <h3>Project Info</h3>
-    <p>This is a project of an Internet radio streamer called <strong>"Evo"</strong>. The hardware was built using an <strong>ESP32-S3</strong> microcontroller and a <strong>PCM5102A DAC codec</strong>.</p>
-    <p>The design allows listening to various music stations from all around the world and works properly with streams encoded in <strong>MP3</strong>, <strong>AAC</strong>, <strong>VORBIS</strong>, <strong>OPUS</strong>, and <strong>FLAC</strong> (up to 1.5&nbsp;Mbit/s).</p>
-    <p>All operations (volume control, station change, memory bank selection, power on/off) are handled via a single rotary encoder. It also supports infrared remote controls working on the <strong>NEC standard (38&nbsp;kHz)</strong>.</p>
-    <p><u>This project is not based on yoRadio.</u></p>
-    <p>Source code and documentation are available at: <b><a href="https://github.com/dzikakuna/ESP32_radio_evo3" target="_blank">github.com/dzikakuna/ESP32_radio_evo3</a></b></p>
-  </div>
-
   <form action="/configadc" method="POST">
-    <table class="tableSettings">
-      <tr><td>ESP Serial Number:</td><td><input name="espSerial" value="%D0"></td></tr>
-      <tr><td>Firmware Version:</td><td><input name="espFw" value="%D1"></td></tr>
-      <tr><td>Hostname:</td><td><input name="hostnameValue" value="%D2"></td></tr>
-      <tr><td>WiFi Signal Strength:</td><td><input id="wifiSignal" value="%D3"> dBm
-        <div class="signal-bars" id="signalBars">
-          <div class="bar" style="height:2px;"></div>
-          <div class="bar" style="height:6px;"></div>
-          <div class="bar" style="height:10px;"></div>
-          <div class="bar" style="height:14px;"></div>
-          <div class="bar" style="height:18px;"></div>
-          <div class="bar" style="height:22px;"></div>
-        </div>
-      </td></tr>
-      <tr><td>WiFi SSID:</td><td><input name="wifiSsid" value="%D4"></td></tr>
-      <tr><td>IP Address:</td><td><input name="ipValue" value="%D5"></td></tr>
-      <tr><td>MAC Address:</td><td><input name="macValue" value="%D6"></td></tr>
-    </table>
+  <table class="tableSettings">
+
+  <tr><td>ESP Serial Number:</td><td><input name="espSerial" value="%D0"></td></tr>
+  <tr><td>Firmware version:</td><td><input name="espFw" value="%D1"></td></tr>
+  <tr><td>Hostname:</td><td><input name="hostnameValue" value="%D2"></td></tr>
+  <tr><td>WiFi Signal Strength:</td><td><input id="wifiSignal" value="%D3"> dBm
+  <div class="signal-bars" id="signalBars">
+      <div class="bar" style="height:2px;"></div>
+      <div class="bar" style="height:6px;"></div>
+      <div class="bar" style="height:10px;"></div>
+      <div class="bar" style="height:14px;"></div>
+      <div class="bar" style="height:18px;"></div>
+      <div class="bar" style="height:22px;"></div>
+    </div>
+
+
+  </td></tr>
+  <tr><td>WiFi SSID:</td><td><input name="wifiSsid" value="%D4"></td></tr>
+  <tr><td>IP number:</td><td><input name="ipValue" value="%D5"></td></tr>
+  <tr><td>MAC Address:</td><td><input name="macValue" value="%D6"></td></tr>
+  
+  </table>
   </form>
-
   <br>
-  <p style="font-size:0.8rem;"><a href="/menu">Go Back</a></p>
-
+  <p style='font-size: 0.8rem;'><a href='/menu'>Go Back</a></p>
+  
   <script>
-    function updateSignalBars(signal){const bars=document.querySelectorAll('#signalBars .bar');
-    let level=0;signal=parseInt(signal);
-    if(signal>=-50)level=6;
-    else if(signal>=-57)level=5;
-    else if(signal>=-66)level=4;
-    else if(signal>=-74)level=3;
-    else if(signal>=-81)level=2;
-    else if(signal>=-88)level=1;
-    else level=0;
-    bars.forEach((bar,index)=>{if(index<level){bar.classList.add('active');}
-    else
-    {bar.classList.remove('active');}});} 
-    const signalInput=document.getElementById('wifiSignal');
+    function updateSignalBars(signal) {
+      const bars = document.querySelectorAll('#signalBars .bar');
+      let level = 0;
+
+      signal = parseInt(signal);
+
+      if (signal >= -50) level = 6;
+      else if (signal >= -57) level = 5;
+      else if (signal >= -66) level = 4;
+      else if (signal >= -74) level = 3;
+      else if (signal >= -81) level = 2;
+      else if (signal >= -88) level = 1;
+      else level = 0;
+
+      bars.forEach((bar, index) => {
+        if (index < level) {
+          bar.classList.add('active');
+        } else {
+          bar.classList.remove('active');
+        }
+      });
+    }
+
+    const signalInput = document.getElementById('wifiSignal');
     updateSignalBars(signalInput.value);
   </script>
-</body>
-</html>
+  </body>
+  </html>
 )rawliteral";
 
 
@@ -5838,7 +5839,6 @@ void saveConfig()
       myFile.println("VU Meter Fall Speed =" + String(vuFallSpeed) + ";");
       myFile.println("Display Clock in Sleep =" + String(f_displayPowerOffClock) + ";");
       myFile.print("Dimmer Sleep Display Brightness =");    myFile.print(dimmerSleepDisplayBrightness); myFile.println(";");
-      myFile.print("Radio switch to standby after Power Fail =");    myFile.print(f_sleepAfterPowerFail); myFile.println(";");
       
 
       myFile.close();
@@ -5879,7 +5879,6 @@ void saveConfig()
       myFile.println("VU Meter Fall Speed =" + String(vuFallSpeed) + ";");
       myFile.println("Display Clock in Sleep =" + String(f_displayPowerOffClock) + ";");
       myFile.print("Dimmer Sleep Display Brightness =");    myFile.print(dimmerSleepDisplayBrightness); myFile.println(";");
-      myFile.print("Radio goes to sleep after Power Fail =");    myFile.print(f_sleepAfterPowerFail); myFile.println(";");
       myFile.close();
       Serial.println("Utworzono i zapisano config.txt na karcie SD");
     } 
@@ -6042,9 +6041,7 @@ void readConfig()
   vuRiseSpeed = configArray[17];
   vuFallSpeed = configArray[18];
   f_displayPowerOffClock = configArray[19];
-  dimmerSleepDisplayBrightness = configArray[20];
-  f_sleepAfterPowerFail = configArray[21];
-
+ dimmerSleepDisplayBrightness = configArray[20];
 
 
   if (maxVolumeExt == 1)
@@ -7053,14 +7050,7 @@ void setup()
   
   // Inicjalizuj komunikację szeregową (Serial)
   Serial.begin(115200);
-  
-  uint64_t chipid = ESP.getEfuseMac();
-  Serial.println("");
-  Serial.println("------------------ START of Evo Web Radio --------------------");
-  Serial.println("-                                                            -");
-  Serial.printf("--------- ESP32 SN: %04X%08X,  FW Ver.: %s ---------\n",(uint16_t)(chipid >> 32), (uint32_t)chipid, softwareRev);
-  Serial.println("- Code source: https://github.com/dzikakuna/ESP32_radio_evo3 -");
-  Serial.println("--------------------------------------------------------------");
+  Serial.println("---------- START of Evo Web Radio -----------");
   
   
   if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
@@ -7135,15 +7125,16 @@ void setup()
     Serial.println("Karta SD zainicjalizowana pomyślnie.");
   }
 
-  readConfig();          // Odczyt konfiguracji
-  if (configExist == false) { saveConfig(); readConfig();} // Jesli nie ma pliku config.txt to go tworzymy
+  //readPowerStatusFromSD(); // Odczyt ostatniego stanu zasilania radia z karty SD lub EEPROMu  
 
+  // Powitanie na wyswietlaczu:
+  //u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
   
-  if ((esp_reset_reason() != ESP_RST_POWERON) || (!f_sleepAfterPowerFail))
+  if (esp_reset_reason() != ESP_RST_POWERON) 
   {
     u8g2.drawXBMP(0, 5, notes_width, notes_height, notes);  // obrazek - nutki
     u8g2.setFont(u8g2_font_fub14_tf);
-    u8g2.drawStr(38, 17, "Evo Internet Radio");
+    u8g2.drawStr(58, 17, "Internet Radio");
     u8g2.setFont(spleen6x12PL);
     u8g2.drawStr(208, 62, softwareRev);
     u8g2.sendBuffer();
@@ -7161,9 +7152,11 @@ void setup()
     u8g2.sendBuffer();
   }
   
+  Serial.print("Numer seryjny ESP:");
+  Serial.println(ESP.getEfuseMac());
+
   u8g2.setFont(spleen6x12PL);
-  if ((esp_reset_reason() == ESP_RST_POWERON) && (f_sleepAfterPowerFail)) {u8g2.drawStr(5, 50, "Wakeup after power loss, switch to Standby");}
-  u8g2.drawStr(5, 62, "Connecting to network...    ");
+  if (esp_reset_reason() != ESP_RST_POWERON) {u8g2.drawStr(5, 62, "Connecting to network...    ");} else {u8g2.drawStr(5, 62, "Wakeup after loss of power   ");}
 
   u8g2.sendBuffer();
   //u8g2.sendF("ca", 0xC7, displayBrightness); // Ustawiamy jasność ekranu zgodnie ze zmienna displayBrightness
@@ -7173,6 +7166,8 @@ void setup()
   // Inicjalizacja WiFiManagera
   wifiManager.setConfigPortalBlocking(false);
 
+  readConfig();          // Odczyt konfiguracji
+  if (configExist == false) { saveConfig(); readConfig();} // Jesli nie ma pliku config.txt to go tworzymy
   readStationFromSD();   // Odczytujemy zapisaną ostanią stację i bank z karty SD /EEPROMu
   readEqualizerFromSD(); // Odczytujemy ustawienia filtrów equalizera z karty SD 
   readVolumeFromSD();    // Odczytujemy nastawę ostatniego poziomu głośnosci z karty SD /EEPROMu
@@ -7223,7 +7218,7 @@ void setup()
     timer2.attach(1, displayDimmerTimer);
     //timer3.attach(60, sleepTimer);   // Ustaw timer3,
 
-    if ((esp_reset_reason() == ESP_RST_POWERON) && (f_sleepAfterPowerFail)) // sprawdzamy czy radio wlaczylo sie po braku zasilania jesli tak to idziemy do spania gdy zasilanie powroci
+    if (esp_reset_reason() == ESP_RST_POWERON) // sprawdzamy czy radio wlaczylo sie po braku zasilania jesli tak to idziemy do spania gdy zasilanie powroci
     {
       Serial.println("debug PWR -> power OFF po powrocie zasilania");
       Serial.print("debug PWR -> Funkcja zegara f_displayPowerOffClock: ");
@@ -7591,8 +7586,6 @@ void setup()
       html.replace(F("%S18"), stationNameFromStream ? "" : " selected");
       html.replace(F("%S19"), f_displayPowerOffClock ? " selected" : "");
       html.replace(F("%S20"), f_displayPowerOffClock ? "" : " selected");
-      html.replace(F("%S21"), f_sleepAfterPowerFail ? " selected" : "");
-      html.replace(F("%S22"), f_sleepAfterPowerFail ? "" : " selected"); 
       html.replace(F("%S1"), displayAutoDimmerOn ? " selected" : "");
       html.replace(F("%S2"), displayAutoDimmerOn ? "" : " selected");
       html.replace(F("%S3"), timeVoiceInfoEveryHour ? " selected" : "");
@@ -7806,10 +7799,8 @@ void setup()
       if (request->hasParam("f_displayPowerOffClock", true)) {
         f_displayPowerOffClock = request->getParam("f_displayPowerOffClock", true)->value() == "1";
       }  
-      if (request->hasParam("f_sleepAfterPowerFail", true)) {
-        f_sleepAfterPowerFail = request->getParam("f_sleepAfterPowerFail", true)->value() == "1";
-      }  
       
+
 
       request->send(200, "text/html", "<h1>Config Settings Updated!</h1><a href='/menu'>Go Back</a>");
       saveConfig(); 
@@ -8001,10 +7992,7 @@ void setup()
     server.on("/info", HTTP_GET, [](AsyncWebServerRequest *request) 
     {
       String html = String(info_html);
-
-      uint64_t chipid = ESP.getEfuseMac();
-      char chipStr[20];
-      sprintf(chipStr, "%04X%08X", (uint16_t)(chipid >> 32), (uint32_t)chipid);
+  
       
       html.replace("%D1", String(softwareRev).c_str()); 
       html.replace("%D2", String(hostname).c_str()); 
@@ -8012,7 +8000,7 @@ void setup()
       html.replace("%D4", String(wifiManager.getWiFiSSID()).c_str()); 
       html.replace("%D5", currentIP.c_str()); 
       html.replace("%D6", WiFi.macAddress().c_str()); 
-      html.replace("%D0", chipStr); 
+      html.replace("%D0", String(ESP.getEfuseMac()).c_str()); 
 
       request->send(200, "text/html", html);
 
@@ -8414,8 +8402,6 @@ void loop()
           //Serial.print("url2play: ");
           //Serial.println(url2play);
           if ((!urlPlaying) || (listedStations)) { changeStation();}
-          if ((rcInputDigitsMenuEnable == true) && (station_nr != stationFromBuffer)) { changeStation();}
-
           else if (urlPlaying) { webUrlStationPlay();}
           clearFlags();                                             // Czyscimy wszystkie flagi przebywania w różnych menu
           displayRadio();

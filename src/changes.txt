@@ -1,5 +1,29 @@
 Changes tracking file for ESP Radio EVO version
 
+3.19.33
+- Corrected reaction on digits keys when playing from URL
+- Configuration File: Updated to include reaction after power fail
+- Radiobroswer: update web page to autodedect IP/Hostname
+- Udpate Info Web Page with documentation links
+- New Start Logo with "Evo"
+
+
+3.19.32
+- Power Modes: Full reset functionality added after wake-up; ON/OFF function can be controlled via remote control or encoder switch
+- Power Status Control: Reset source dedection add, if there was blackout radio will go to sleep mode
+- Sleep Mode: Added with selectable timers of 15, 30, 45, 75, and 90 minutes
+- No Network Mode: Added IR control in no network mode, Power OFF and Restart possible
+- Configuration File: Updated to include on/off option for the clock in sleep mode on or off
+- Full-Screen Clock: Now displayed during sleep mode
+- Radio Browser API Integration: Search and play radio stations directly from RadioBrowser servers
+- Station Navigation: Using the arrow keys now works in loop mode; reaching the last station (e.g., 99) moves to station 1 automatically
+	
+3.19.19
+- corrected bitrate dispaly with estiamted bitrate
+- in station list menu left and right arrows now increase station count by 5 (speed move on list)
+- add remote POWER OFF/ON option puting ESP32 in light sleep mode. Function under rcCmdRed button on remote
+
+
 3.19.11
 - this is copy of version 3.18.21 with support for new audio i2s library and ESP32 core 
 - support new stream info read
