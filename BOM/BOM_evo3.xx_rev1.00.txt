@@ -3,3 +3,6 @@ Power switch option 2 -> 1x - https://www.tme.eu/pl/details/mr5110f5bb/przelaczn
 
 SD Card reader -> https://sklep.msalamon.pl/produkt/czytnik-kart-pamieci-microsd-spi-sdio/
 OLED -> https://sklep.msalamon.pl/produkt/wyswietlacz-oled-312-256x64px-bialy/
+
+
+USB

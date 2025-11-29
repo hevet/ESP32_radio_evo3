@@ -1,4 +1,18 @@
 Changes tracking file for ESP Radio EVO version
+3.19.47
+
+- Storage: Now you can select inside code if you are using SD Card or SPIFFS memory by single line change
+- 2nd Encoder add as an option
+- Single click powerOff / powerOn by remote control and by click on encoders
+- Replace on Config web all Select items by CheckBoxes
+- DisplayRadio: Change evt audio refrash action, no scroller function in mode 1 (big clock), just static name of selected station
+- Radio TitleName: BOM UTF signs removed (ex. visable on on RadioZET)
+- WWW page: Mute indicator add
+- BUGs dedected: 
+	- Change volume on web page during MUTE was not switching off mute flag
+	- Corrected NTP->RTC sync. after power lose
+
+
 
 3.19.33
 - Corrected reaction on digits keys when playing from URL
@@ -25,7 +39,7 @@ Changes tracking file for ESP Radio EVO version
 
 
 3.19.11
-- this is copy of version 3.18.21 with support for new audio i2s library and ESP32 core 
+- this is copy of version 3.18.21 with support for new audio i2s (3.4.2 and higher) library and ESP32 core (3.2.0)
 - support new stream info read
 - new function to feed stream data on OLED display
 - preparation for increase banks numbers
