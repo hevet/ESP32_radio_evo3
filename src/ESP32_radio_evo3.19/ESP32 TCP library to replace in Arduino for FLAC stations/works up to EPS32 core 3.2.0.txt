@@ -1,0 +1,4 @@
+This libs change throughput of WiFi network on ESP32 so FLAC stream work smoothly upt o 1500kbps.
+
+Replace file in location:
+C:\Users\YOUR USER NAME\AppData\Local\Arduino15\packages\esp32\tools\esp32-arduino-libs\idf-release_v5.4-2f7dcd86-v1\esp32s3

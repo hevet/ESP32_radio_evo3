@@ -1,4 +1,10 @@
 Changes tracking file for ESP Radio EVO version
+3.19.48
+- correct switch off when PowerClock flag is set to 0
+- corrected WS inside html control
+- Welcome message now shows SD/SPIFSS and TwoEncoders flags settings
+
+
 3.19.47
 
 - Storage: Now you can select inside code if you are using SD Card or SPIFFS memory by single line change
