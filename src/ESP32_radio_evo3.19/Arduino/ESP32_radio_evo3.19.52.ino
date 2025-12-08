@@ -7,7 +7,7 @@
 //                                                                                                                     //
 // Compilator: Arduino, Platformio                                                                                     //
 // Espressif ESPcore32-s3:                      3.2.0 (works on newer but without modified libs for FLAC files)        //
-// ESP32-audioI2S-master by schreibfaul1:       3.4.3 with commits 1.12.2025                                           //
+// ESP32-audioI2S-master by schreibfaul1:       3.4.4 with commits 7.12.2025                                           //
 // ESP Async WebServer:                         3.9.1                                                                  //
 // Async TCP:                                   3.4.9                                                                  // 
 // ezButton:                                    1.0.6                                                                  //

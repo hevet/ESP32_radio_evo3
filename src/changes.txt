@@ -1,4 +1,17 @@
-Changes tracking file for ESP Radio EVO version
+Changes tracking file for ESP32 -  "Evo Internet Radio" - v3
+
+3.19.50
+- add option "Play form URL" in main menu
+- add own LOGO at start-up loaded from SD (if exist) - file logo.xbm (256x64)
+- recovery mode update, WIFI manager mode
+	- auto reset after connection add
+	- info "CONNECTED" after proper connection and display assgined by router IP
+- Save Always flag add to prevent saving on every change Station No, Bank No., Volume value speciali if we usign SPIFFS
+- Extra audio buffer view in VU mode 4
+- correction of VU max value to avoid clipping in mode0
+- Info about used library revision is now placed inside source code
+
+
 3.19.48
 - correct switch off when PowerClock flag is set to 0
 - corrected WS inside html control
@@ -19,7 +32,6 @@ Changes tracking file for ESP Radio EVO version
 	- Corrected NTP->RTC sync. after power lose
 
 
-
 3.19.33
 - Corrected reaction on digits keys when playing from URL
 - Configuration File: Updated to include reaction after power fail
@@ -37,6 +49,7 @@ Changes tracking file for ESP Radio EVO version
 - Full-Screen Clock: Now displayed during sleep mode
 - Radio Browser API Integration: Search and play radio stations directly from RadioBrowser servers
 - Station Navigation: Using the arrow keys now works in loop mode; reaching the last station (e.g., 99) moves to station 1 automatically
+
 	
 3.19.19
 - corrected bitrate dispaly with estiamted bitrate
