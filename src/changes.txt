@@ -1,6 +1,13 @@
 Changes tracking file for ESP32 -  "Evo Internet Radio" - v3
 
-3.19.50
+3.19.53
+- corrected isseuw with logo loading when using SPIFFS
+- corrected proper back from settings (OLED refresh)
+- corrected save station and bank when only bank was changed
+- fetchStation function now with redirection option
+
+
+3.19.52
 - add option "Play form URL" in main menu
 - add own LOGO at start-up loaded from SD (if exist) - file logo.xbm (256x64)
 - recovery mode update, WIFI manager mode
@@ -10,6 +17,7 @@ Changes tracking file for ESP32 -  "Evo Internet Radio" - v3
 - Extra audio buffer view in VU mode 4
 - correction of VU max value to avoid clipping in mode0
 - Info about used library revision is now placed inside source code
+- [pssibility to use JOY signals for SD Active, SW Power, 
 
 
 3.19.48
