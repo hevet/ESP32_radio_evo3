@@ -1,1 +1,0 @@
-https://dl.espressif.com/dl/esp-idf/
