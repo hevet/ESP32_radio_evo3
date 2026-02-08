@@ -1,7 +1,23 @@
-Changes tracking file for ESP32 -  "Evo Internet Radio" - v3
+Changes tracking file for ESP32 -  "Evo Internet Radio" - Evo_V3
+
+3.19.70
+- Replace SPIFFS by LittleFS 
+- Auto dedection of SD card / Little FS storage - sitll experimental but should work correct
+- New bank editor 1.06
+- New Radio Browser 2.1 (auto dedect of alive server add)
+- Font change for code and bitrate info in mode 3
+- WebSocket corrected for better berformance on web page
+- New UTF8 coddding for WebSockets 
+- Slow logo fade-in effect added
+- PowerOff Animation configured via web page
+- Corrected station list function, now after clikc or rotate currently played station will be highligted on top
+- StatusLED add, now GPIO17 is assigned as IR LED activity, PowerLED-Standby, SD-Card Activity LED
+- Communication via RS232 add for future integration
+- Corrected systematic RTC error in powerOff mode with clock display
+
 
 3.19.53
-- corrected isseuw with logo loading when using SPIFFS
+- corrected issue with logo loading when using SPIFFS
 - corrected proper back from settings (OLED refresh)
 - corrected save station and bank when only bank was changed
 - fetchStation function now with redirection option

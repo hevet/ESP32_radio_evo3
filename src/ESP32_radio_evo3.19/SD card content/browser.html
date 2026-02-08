@@ -32,21 +32,21 @@
   audio {margin-top: 15px; width: 90%;}
   .multiselect {position: relative; display: inline-block;}
   .selectBox {border:1px solid gray; border-radius:4px; padding:6px; cursor:pointer; width:120px; background:#fff;}
-  .checkBoxes{display:none;border:1px solid #aaa;position:absolute;background:#fff;z-index:1;width:120px;max-height:220px;overflow-y:auto;margin-top:1px;border-radius:1px;font-size:0.8rem;} 
-  .checkBoxes label{display:flex;align-items:center;white-space:nowrap;padding:2px 6px;cursor:pointer;line-height:1.1;} 
-  .checkBoxes input[type="checkbox"]{appearance:none;width:13px;height:13px;border:1px solid #444;border-radius:2px;margin-right:5px;position:relative;top:-1px;} 
-  .checkBoxes input[type="checkbox"]:checked{background-color:#4CAF50;} 
-  .checkBoxes label:first-child{font-weight:bold;} 
+  .checkBoxes{display:none;border:1px solid #aaa;position:absolute;background:#fff;z-index:1;width:120px;max-height:220px;overflow-y:auto;margin-top:1px;border-radius:1px;font-size:0.8rem;}
+  .checkBoxes label{display:flex;align-items:center;white-space:nowrap;padding:2px 6px;cursor:pointer;line-height:1.1;}
+  .checkBoxes input[type="checkbox"]{appearance:none;width:13px;height:13px;border:1px solid #444;border-radius:2px;margin-right:5px;position:relative;top:-1px;}
+  .checkBoxes input[type="checkbox"]:checked{background-color:#4CAF50;}
+  .checkBoxes label:first-child{font-weight:bold;}
   .checkBoxes label:hover{background:#f0f0f0;}
 </style>
 </head>
 <body>
-<h2> Evo Web Radio - Radiobrowser
-  <span style="font-size:0.8rem; font-weight:normal; color:#333;">rev. 1.8</span>
-</h2>
+<h2> Evo Web Radio - Radiobrowser <span style="font-size:0.8rem; font-weight:normal; color:#333;">rev. 2.1</span></h2>
 <p style="font-size: 0.8rem; margin-top:-6px;"><a href="/">Go Back</a></p>
-<span>Host: <p id="hostInfo" style="font-size:0.85rem; color:#222; width: 120px;align-items: center; background:#fff; border:1px solid #aaa; display:inline-block; padding:6px 10px; border-radius:6px;"><b>detecting...</b></p></span>
+<p id="status" style="font-size:0.9rem;">Detecting server...</p>
 
+<span>Evo Host: <p id="hostInfoLocal" style="font-size:0.85rem; color:#222; width: 120px; background:#fff; border:1px solid #aaa; display:inline-block; padding:6px 10px; border-radius:6px;"><b>detecting...</b></p></span>
+<span>Radiobrowser Server: <p id="hostInfo" style="font-size:0.85rem; color:#222; width: 260px; background:#fff; border:1px solid #aaa; display:inline-block; padding:6px 10px; border-radius:6px;"><b>detecting...</b></p></span>
 
 <div class="column">
   <select id="countrySelect"><option value="">- Country -</option></select>
@@ -64,69 +64,111 @@
   <button id="searchBtn" class="button">Search</button>
 </div>
 
-<p id="status">Select criteria and click Search Button.</p>
-
 <div id="results" class="results"></div>
 <div id="playerArea"></div>
 
 <script>
-const API = "https://de1.api.radio-browser.info/json";
+// lista znanych hostów Radio Browser
+const radioBrowserHosts = [
+  'https://de2.api.radio-browser.info',
+  'https://de1.api.radio-browser.info',
+  'https://de3.api.radio-browser.info',
+  'https://nl1.api.radio-browser.info',
+  'https://at1.api.radio-browser.info',
+  'https://ch1.api.radio-browser.info',
+  'https://cz1.api.radio-browser.info',
+  'https://fr1.api.radio-browser.info',
+  'https://fi1.api.radio-browser.info',
+  'https://ru1.api.radio-browser.info',
+  'https://us1.api.radio-browser.info'
+];
+
+let API = ""; // zostanie ustawione po detekcji
+
+const hostInfo = document.getElementById("hostInfo");
+const hostInfoLocal = document.getElementById("hostInfoLocal");
+
+// Evo host info - detekcja radia
+const currentHost = window.location.hostname || "localhost";
+hostInfoLocal.innerHTML = `<b>${currentHost}</b>`;
+
+// wykrywamy pierwszy działający host z listy
+async function detectApiHost() {
+  for (let host of radioBrowserHosts) 
+  {
+    try 
+    {
+      const testUrl = `${host}/json/countries`;
+      const res = await fetch(testUrl);
+      if (res.ok) {
+        API = `${host}/json`;
+        hostInfo.innerHTML = `<b>${host}</b>`;
+        statusP.textContent = "API server detected.";
+        setupAfterApi(); // dopiero potem podpinamy resztę
+        return;
+    }
+  } 
+  catch (e) {
+      console.warn(`Host failed: ${host}`);
+    }
+  }
+  statusP.textContent = "Could not find active Radio Browser API server.";
+  hostInfo.innerHTML = `<b>none found</b>`;
+}
+
+detectApiHost();
+
+// całe dalsze UI (bez zmian) — eventy i fetchy po API
+function setupAfterApi() {
+  // dopiero po wykryciu hosta
+  searchBtn.addEventListener("click", searchStations);
+  nameInput.addEventListener("keydown", e => { if (e.key === "Enter") searchStations(); });
+  tagInput.addEventListener("keydown", e => { if (e.key === "Enter") searchStations(); });
+  loadCountries();
+  loadTags();
+}
+
+// === ORYGINALNY KOD PONIŻEJ (bez zmian) ===
+
 const countrySelect = document.getElementById("countrySelect");
 const stateSelect = document.getElementById("stateSelect");
-const tagInput = document.getElementById("tagInput");
 const tagList = document.getElementById("tagList");
+const tagInput = document.getElementById("tagInput");
 const nameInput = document.getElementById("nameInput");
 const bitrateInput = document.getElementById("bitrateInput");
-const searchBtn = document.getElementById("searchBtn");
 const resultsDiv = document.getElementById("results");
+const searchBtn = document.getElementById("searchBtn");
+const checkBoxes = document.getElementById("checkBoxes");
+const codecOptions = ["MP3","AAC","FLAC","OGG","Opus","WMA","WAV","AIFF"];
 const statusP = document.getElementById("status");
 const playerArea = document.getElementById("playerArea");
 
-const hostInfo = document.getElementById("hostInfo");
-const currentHost = window.location.hostname || "localhost";
-hostInfo.innerHTML = `<b>${currentHost}</b>`;
-
-const checkBoxes = document.getElementById("checkBoxes");
-const codecOptions = ["MP3","AAC","FLAC","OGG","Opus","WMA","WAV","AIFF"];
 const selectAllLabel = document.createElement("label");
 const selectAllCb = document.createElement("input");
 selectAllCb.type="checkbox";
-selectAllCb.addEventListener("change",()=>{ 
-  checkBoxes.querySelectorAll('input[type="checkbox"]:not([data-select-all])').forEach(cb=>cb.checked=selectAllCb.checked); 
+selectAllCb.dataset.selectAll="1";selectAllCb.addEventListener("change",()=>{ 
+  checkBoxes.querySelectorAll('input[type="checkbox"]:not([data-select-all])')
+    .forEach(cb=>cb.checked=selectAllCb.checked); 
 });
-selectAllCb.dataset.selectAll="1";
-selectAllLabel.appendChild(selectAllCb);
-selectAllLabel.style.fontWeight = "bold";
+selectAllLabel.appendChild(selectAllCb);selectAllLabel.style.fontWeight = "bold";
 selectAllLabel.appendChild(document.createTextNode(" Select All"));
 checkBoxes.appendChild(selectAllLabel);
 
 codecOptions.forEach(codec=>{
   const label = document.createElement("label");
-  const cb = document.createElement("input");
-  cb.type = "checkbox";
-  cb.value = codec;
-  label.appendChild(cb);
-  label.appendChild(document.createTextNode(" "+codec));
+  const cb = document.createElement("input"); cb.type="checkbox"; cb.value=codec;
+  label.appendChild(cb); label.appendChild(document.createTextNode(" "+codec));
   checkBoxes.appendChild(label);
 });
 
-function toggleCheckboxes() {
-  checkBoxes.style.display = checkBoxes.style.display === "block" ? "none" : "block";
-}
-function getSelectedCodecs() {
-  return Array.from(checkBoxes.querySelectorAll("input:checked:not([data-select-all])")).map(cb=>cb.value);
-}
+function toggleCheckboxes() { checkBoxes.style.display = checkBoxes.style.display==="block"?"none":"block"; }
+function getSelectedCodecs() { return Array.from(checkBoxes.querySelectorAll("input:checked:not([data-select-all])")).map(cb=>cb.value); }
 
 async function loadCountries() {
   const res = await fetch(`${API}/countries`);
   const data = await res.json();
   data.sort((a,b)=>a.name.localeCompare(b.name));
-  for (const c of data) {
-    const opt = document.createElement("option");
-    opt.value = c.name;
-    opt.textContent = c.name;
-    countrySelect.appendChild(opt);
-  }
+  for (const c of data) { if(c.name){ const opt = document.createElement("option"); opt.value=c.name; opt.textContent=c.name; countrySelect.appendChild(opt);} }
 }
 
 async function loadStates(country) {
@@ -135,24 +177,21 @@ async function loadStates(country) {
   const res = await fetch(`${API}/states/${encodeURIComponent(country)}`);
   const data = await res.json();
   data.sort((a,b)=>a.name.localeCompare(b.name));
-  for (const s of data) {
-    const opt = document.createElement("option");
-    opt.value = s.name;
-    opt.textContent = s.name;
-    stateSelect.appendChild(opt);
-  }
+  for (const s of data) { const opt = document.createElement("option"); opt.value=s.name; opt.textContent=s.name; stateSelect.appendChild(opt); }
 }
 
 async function loadTags() {
   const res = await fetch(`${API}/tags`);
   const data = await res.json();
   data.sort((a,b)=>a.name.localeCompare(b.name));
-  for (const t of data.slice(0, 3000)) {
-    const opt = document.createElement("option");
-    opt.value = t.name;
-    tagList.appendChild(opt);
+  for (const t of data.slice(0, 3000)) 
+  { 
+   const opt = document.createElement("option"); 
+   opt.value=t.name; 
+   tagList.appendChild(opt); 
   }
 }
+
 
 // Stare kopiowanie linku działające na HTTP
 function copyLink(e, url) {
@@ -315,7 +354,9 @@ tagInput.addEventListener("keydown", e => { if (e.key === "Enter") searchStation
 
 loadCountries();
 loadTags();
-</script>
 
+
+
+</script>
 </body>
 </html>

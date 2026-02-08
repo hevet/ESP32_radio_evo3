@@ -4,97 +4,35 @@
   <meta charset="UTF-8">
   <title>Bank Editor - ESP Radio</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 3px;
-	  background-color: #f5f5f5;
-    }
-	 #container {
-      max-width: 1250px;
-      margin: 0 auto;
-      text-align: center;
-    }
-	
-    .station {
-      display: flex;
-      gap: 3px;
-      margin-bottom: 3px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .input-name {
-      width: 220px;
-      background-color: #f0f8ff;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 4px;
-    }
-    .input-bank {
-      width: 65px;
-      background-color: #fff5cc;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 4px;
-    }
-    .input-station {
-      width: 65px;
-      background-color: #e6ffe6;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 4px;
-    }
-    .input-url {
-      width: 650px;
-      background-color: #fefefe;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      padding: 4px;
-      font-family: monospace;
-    }
-    .remove-btn, .up-btn, .down-btn, .play-btn {
-      background-color: #ccc;
-	  border: none;
-      padding: 3px 6px;
-      border-radius: 5px;
-      cursor: pointer;
-	  background-color: #4CAF50; 
-	  color: white;
 
-    }
-    .remove-btn:hover { background-color: #e74c3c; color: white; }
+	body { font-family: sans-serif; padding: 3px; background-color: #f5f5f5; }
+	#container { max-width: 1250px; margin: 0 auto; text-align: center; }
+
+	.station { display: flex; gap: 3px; margin-bottom: 3px; flex-wrap: wrap; align-items: center; }
+
+	.input-name { width: 220px; background-color: #f0f8ff; border: 1px solid #ccc; border-radius: 5px; padding: 4px; }
+	.input-bank { width: 65px; background-color: #fff5cc; border: 1px solid #ccc; border-radius: 5px; padding: 4px; }
+	.input-station { width: 65px; background-color: #e6ffe6; border: 1px solid #ccc; border-radius: 5px; padding: 4px; }
+	.input-url { width: 650px; background-color: #fefefe; border: 1px solid #ccc; border-radius: 5px; padding: 4px; font-family: monospace; }
+
+	.remove-btn, .up-btn, .down-btn, .play-btn { background-color: #4CAF50; border: none; padding: 3px 6px; border-radius: 5px; cursor: pointer; color: white; }
+
+	.remove-btn:hover { background-color: #e74c3c; color: white; }
 	.play-btn:hover { background-color: #E0E000; color: white; }
-    .up-btn:hover, .down-btn:hover { background-color: #4a4a4a; color: white; }
-    
+	.up-btn:hover, .down-btn:hover { background-color: #4a4a4a; color: white; }
+
+	button { padding: 3px 8px; margin: 2px; border: 1px solid #333; border-radius: 5px; background-color: #4CAF50; color: white; }
+	button:hover { background-color: #4a4a4a; color: white; }
+
+	select { padding: 4px 8px; margin: 4px 4px 4px 0; border: 1px solid #333; border-radius: 5px; }
 
 	
-	button {
-      padding: 3px 8px;
-      margin: 2px 2px 2px 2px;
-	  border: 1px solid #333;
-	  border-radius: 5px;
-	  background-color: #4CAF50; 
-	  color: white;
-	}  
-	button:hover {
-	background-color: #4a4a4a; 
-	color: white; 
-	}
-	
-	select {
-      padding: 4px 8px;
-      margin: 4px 4px 4px 0;
-	  border: 1px solid #333;
-	  border-radius: 5px;
-    }
-	
-	
-}
-  </style>
+</style>
 </head>
 <body>
 <div id="container">
-  <h2>ESP Web Radio - Edytor Banków</h2>
-  <p style="font-size: 0.8rem;">Rev - v1.05</p>
+  <h2>Evo Web Radio - Bank Editor</h2>
+  <p style="font-size: 0.8rem;">Rev - v1.06</p>
   <p style="font-size: 0.8rem;"><a href=https://github.com/dzikakuna/ESP32_radio_streams>https://github.com/dzikakuna/ESP32_radio_streams</a></p>
   <br>
   <br>
@@ -169,8 +107,9 @@
     addStation(); // pusta stacja
 	} else {
     const name = line.slice(0, 25).trim();
-    const rest = line.slice(25).trim().split(' ');
-    const bank = (rest[0] || '') + " " + (rest[1] || '');
+    //const rest = line.slice(25).trim().split(' ');
+    const rest = line.slice(25).trim().split(/\s+/);
+	const bank = (rest[0] || '') + " " + (rest[1] || '');
     const station = (rest[2] || '') + " " + (rest[3] || '');
     const url = rest.slice(4).join(' ') || '';
     addStation(name, bank, station, url);
@@ -211,7 +150,8 @@ function loadStationsEsp() {
     addStation(); // pusta stacja
 	} else {
     const name = line.slice(0, 25).trim();
-    const rest = line.slice(25).trim().split(' ');
+    //const rest = line.slice(25).trim().split(' ');
+	const rest = line.slice(25).trim().split(/\s+/);
     const bank = (rest[0] || '') + " " + (rest[1] || '');
     const station = (rest[2] || '') + " " + (rest[3] || '');
     const url = rest.slice(4).join(' ') || '';
