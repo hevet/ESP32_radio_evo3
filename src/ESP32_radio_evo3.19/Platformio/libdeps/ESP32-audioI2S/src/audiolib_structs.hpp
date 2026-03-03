@@ -16,39 +16,43 @@ struct sylt_t {
 };
 
 struct ID3Hdr_t { // used only in readID3header()
-    size_t                retvalue;
-    size_t                headerSize;
-    size_t                tagSize;
-    size_t                cnt;
-    size_t                id3Size;
-    size_t                totalId3Size; // if we have more header, id3_1_size + id3_2_size + ....
-    size_t                remainingHeaderBytes;
-    size_t                universal_tmp;
-    uint8_t               ID3version;
-    uint8_t               ID3revision;
-    uint8_t               flags;
-    bool                  unsync;
-    bool                  extended_header;
-    bool                  experimental_indicator;
-    bool                  footer_present;
-    size_t                offset;
-    size_t                currentPosition;
-    int                   ehsz;
-    char                  tag[5];
-    char                  frameid[5];
-    char                  lang[5];
-    size_t                framesize;
-    bool                  compressed;
-    std::vector<uint32_t> APIC_vec;
-    sylt_t                SYLT;
-    uint8_t               numID3Header;
-    uint16_t              iBuffSize;
-    uint8_t               contentDescriptorTerminator_0;
-    uint8_t               contentDescriptorTerminator_1;
-    uint8_t               textStringTerminator_0;
-    uint8_t               textStringTerminator_1;
-    bool                  byteOrderMark;
+    size_t                retvalue = {};
+    size_t                headerSize = {};
+    size_t                tagSize = {};
+    size_t                cnt = {};
+    size_t                id3Size = {};
+    size_t                totalId3Size = {}; // if we have more header, id3_1_size + id3_2_size + ....
+    size_t                remainingHeaderBytes = {};
+    size_t                v22_tag_length = {};
+    uint8_t               ID3version = {};
+    uint8_t               ID3revision = {};
+    uint8_t               flags = {};
+    bool                  unsync = {};
+    bool                  extended_header = {};
+    bool                  experimental_indicator = {};
+    bool                  footer_present = {};
+    size_t                offset = {};
+    size_t                currentPosition = {};
+    int                   ehsz = {};
+    char                  tag[5] = {};
+    char                  frameid[5] = {};
+    char                  lang[5] = {};
+    size_t                framesize = {};
+    bool                  compressed = {};
+    std::vector<uint32_t> APIC_vec = {};
+    sylt_t                SYLT = {};
+    uint8_t               numID3Header = {};
+    uint16_t              iBuffSize = {};
+    uint8_t               contentDescriptorTerminator_0 = {};
+    uint8_t               contentDescriptorTerminator_1 = {};
+    uint8_t               textStringTerminator_0 = {};
+    uint8_t               textStringTerminator_1 = {};
+    bool                  byteOrderMark = {};
     ps_ptr<char>          iBuff;
+
+    void reset() {
+        *this = ID3Hdr_t{};
+    }
 };
 
 struct pwsHLS_t { // used in processWebStreamHLS()
@@ -67,6 +71,7 @@ struct pwsHLS_t { // used in processWebStreamHLS()
 struct pplM3u8_t { // used in parsePlaylist_M3U8
     uint64_t xMedSeq;
     bool     f_mediaSeq_found;
+    bool     firstCall;
 };
 
 struct m4aHdr_t { // used in read_M4A_Header
@@ -89,9 +94,11 @@ struct m4aHdr_t { // used in read_M4A_Header
     size_t   sizeof_mp4a;
     size_t   sizeof_udta;
     size_t   sizeof_meta;
+    size_t   sizeof_chpl;
     size_t   audioDataPos;
     size_t   cnt;
     size_t   offset;
+    uint32_t mdat_startPos;
     uint32_t picPos;
     uint32_t picLen;
     uint32_t ilst_pos;
@@ -110,6 +117,7 @@ struct m4aHdr_t { // used in read_M4A_Header
     uint32_t stsz_table_pos;
     bool     progressive; // Progressive (moov before mdat)
     bool     version_flags;
+    bool     mdat_seen;
 };
 
 struct plCh_t { // used in playChunk
@@ -117,8 +125,11 @@ struct plCh_t { // used in playChunk
     int32_t   samples48K = 0;
     uint32_t  count = 0;
     size_t    i2s_bytesConsumed;
+    uint16_t  samples;
     int16_t*  sample[2];
-    int16_t*  s2;
+    int32_t*  sample1;
+    int16_t*  s16;
+    int32_t*  s32;
     int       sampleSize;
     esp_err_t err;
     int       i;
@@ -162,29 +173,40 @@ typedef struct _cat { // used in calculateAudioTime
     uint32_t avrBitrateStable{};
     uint32_t oldAvrBitrate{};
     uint32_t brCounter{};
+    bool     firstCall{};
 
     void reset() {
-        // Default-initialize alles neu (inklusive Array)
         *this = _cat{};
     }
 } cat_t;
 
 struct cVUl_t { // used in computeVUlevel
     uint8_t sampleArray[2][4][8] = {0};
-    uint8_t cnt0 = 0, cnt1 = 0, cnt2 = 0, cnt3 = 0, cnt4 = 0;
-    bool    f_vu = false;
+    uint8_t  cnt0 = 0, cnt1 = 0, cnt2 = 0, cnt3 = 0, cnt4 = 0;
+    bool     f_vu = false;
 };
 
 struct ifCh_t { // used in IIR_filterChain0, 1, 2
-    float   inSample0[2];
-    float   outSample0[2];
-    int16_t iir_out0[2];
-    float   inSample1[2];
-    float   outSample1[2];
-    int16_t iir_out1[2];
-    float   inSample2[2];
-    float   outSample2[2];
-    int16_t iir_out2[2];
+    // s16
+    float   inSample0_16[2];
+    float   outSample0_16[2];
+    int16_t iir_out0_16[2];
+    float   inSample1_16[2];
+    float   outSample1_16[2];
+    int16_t iir_out1_16[2];
+    float   inSample2_16[2];
+    float   outSample2_16[2];
+    int16_t iir_out2_16[2];
+    // s32
+    float   inSample0_32[2];
+    float   outSample0_32[2];
+    int32_t iir_out0_32[2];
+    float   inSample1_32[2];
+    float   outSample1_32[2];
+    int32_t iir_out1_32[2];
+    float   inSample2_32[2];
+    float   outSample2_32[2];
+    int32_t iir_out2_32[2];
 };
 
 typedef struct _tspp { // used in ts_parsePacket
@@ -198,7 +220,7 @@ typedef struct _tspp { // used in ts_parsePacket
         // Default-initialize alles neu (inklusive Array)
         *this = _tspp{};
     }
-}tspp_t;
+} tspp_t;
 
 struct pwst_t { // used in processWebStream
     uint16_t maxFrameSize;
