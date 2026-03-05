@@ -8,51 +8,54 @@
   <img src="Photos\ESP32_PCB_vis02.png" title="ESP32 Radio">
   <img src="Photos\DisplayMode0.png" title="ESP32 Radio" width="420" height="160">
   <img src="Photos\DisplayMode1.png" title="ESP32 Radio" width="420" height="160">
-  <img src="Photos\DisplayMode2.png" title="ESP32 Radio" width="420" height="160">  
   <img src="Photos\DisplayMode3.png" title="ESP32 Radio" width="420" height="160">
   <img src="Photos\DisplayMode4.png" title="ESP32 Radio" width="420" height="160">
 </p>
 
 
 ## Overview
-This is project of Internet Radio Streamer called "Evo". Hardware was buid using EPS32-S3 and DAC codec PCM5102A. Construction allows to listen varius music station from all aroudn world.
-working properly with streams coded in MP3, AAC, VORBIS and FLAC (up to 1.5Mbit). Support all operations (volume control, stations changes, memory bank change, power on/off) on single rotary 
-encoder and aslo cooeprate with infrared remote controls working on NEC standars (38kHz).
+This is project of Internet Radio Streamer called "Evo". Hardware was buid using EPS32-S3 and DAC codec PCM5102A. Construction allows to listen varius music station from all around the world.
+Working properly with streams coded in MP3, AAC, VORBIS and FLAC up to 2000kbit ! Support all operations like volume control, stations changes, memory bank change, power on/off on single rotary 
+encoder. Support infrared remote controls working on NEC standars (38kHz) and full control over web page and Android APP.
 
-Project is NOT based on yoRadio.
+Many people is mixing wiht others (yoRadio) - Evo is NOT based on yoRadio. Streamer was fully developed in Poland.
 
-- Internet radio stream station from bank files (can be stored on SD card or downloaded from GitHub)
+Functions:
+- Internet radio stream station from bank files (can be stored on SD card/internal LittleFS or downloaded from GitHub)
 - I2S simple PCM5102A decoder support
 - Full web server integrated for controling from desktop computer or mobile phone
-- OLED Display
-- Single rotary encoder operations, 
+- OLED Display SSD1322, SH1122 (256px x 64px)
+- Single rotary encoder operations 
 - OTA updates directlly from web page
-- SD card content review by web page
+- SD card /LittleFS content review/upload/download/delete by web page
 - VUmeters add as some visualization on OLED
 - 16 Banks with 99 station per each Bank support
 - Polish fonts add for coorrect display station strings
 - 3-point Equalizer
-- Resistance keyboard based on single ADC input
-- 3 display modes with fullscreen clock option
-- Configuration stored on SD card. Minimum function keep as a "hardcoded"
+- ADC resistance keyboard support for easy inegration in FM converted tuners
 - Power on/off from remote controller
 - Sleep timer
 
-## Display Modes
 
+## Display Modes
+<img src="Photos\ScreenMode0.png" title="ESP32 Radio" width="512" height="128">
+<img src="Photos\ScreenMode1.png" title="ESP32 Radio" width="512" height="128">
+<img src="Photos\ScreenMode2.png" title="ESP32 Radio" width="512" height="128">
+<img src="Photos\ScreenMode3.png" title="ESP32 Radio" width="512" height="128">
+<img src="Photos\ScreenMode4.png" title="ESP32 Radio" width="512" height="128">
+<img src="Photos\ScreenMode5.png" title="ESP32 Radio" width="512" height="128">
 
 ## Hardware
 - ESP32-S3 dev. module with internal antena or external antena connector
-- SD or micro SD card reader
 - 256x64 OLED display based on SSD1322 or SH1122 driver IC
 - 1x Rotary encoder
 - IR 38KHz receiver (Vishay TSOP2238)
 - PCB design stored in repository
 - Housing avalivle as ready to print STL files
-
+- SD or micro SD card reader (optional)
  
 ## Software
-Project was coded in Arduino platform but ready main.cpp for Platformio avalable and also tested
+Project was coded in Arduino but ready main.cpp for Platformio files avalable and also tested
 
 How to compile (Arduino):
 - Install fresh Arduino (currently 2.3.6)
@@ -62,54 +65,43 @@ How to compile (Arduino):
   ezButton, 
   U8g2, 
   WiFiManager
-  
+
+Proper version of all libs are placed on top of source code ino file
 For Platformio look into src folder -> Platformio folder and Platformio.ini file.
 
 
 ## Software Dependencies
-[ESP Espressif 3.2.0 libs]
-- WiFi 3.2.0 
-- Networking 3.2.0 
-- NetworkClientSecure 3.2.0 
-- SD 3.2.0 
-- FS 3.2.0 
-- SPI 3.2.0 
-- SD_MMC 3.2.0 
-- SPIFFS w wersji 3.2.0 
-- HTTPClient w wersji 3.2.0 
-- FFat w wersji 3.2.0 
-- Update w wersji 3.2.0 
-- WebServer w wersji 3.2.0 
-- DNSServer w wersji 3.2.0 
-- ESP32 Async UDP w wersji 3.2.0 
-- EEPROM w wersji 3.2.0 
-- Wire 3.2.0 
-- Ticker 3.2.0 
+[ESP Espressif 3.3.7 libs]
+
 
 [3rd-party libs]
-- ESP32-audioI2S-master 3.4.3
+- ESP32-audioI2S-master 3.4.4
 - U8g2 2.36.5
 - ezButton 1.0.4
-- WiFiManager w wersji 2.0.17
-- ESP Async WebServer w wersji 3.7.2
-- Async TCP 3.3.6 
+- WiFiManager 2.0.17
+- ESP Async WebServer 3.10.0
+- Async TCP 3.4.10
 
 ## Web server
 Radio has buit in small web server with simple webpage for list stations, bank select, volume control and access to settings menu
 <p><img src="Photos\RadioWeb1.png" title="ESP32 Radio" width="750" height="580"></p>
 
+## Android APK
+There is small Android APK wirtten for this project giving possibily to direct control Evo radio from mobile phone.
+<img src="Photos\AndroidAPK.jpg" title="ESP32 Radio APK" width="245" height="499">
+
 ## Remote Control
-There is pre-coded Remote Controler RC-406 (Kenwood clone). 
-You can change it by editing remote.txt file on SD card.
+There is pre-coded Remote Controler RC-406 (Kenwood clone). You can change it by editing remote.txt file on SD card.
 Key mapping:
-<p><img src="Photos\RemoteControlMap_RC406_rev1.10.png" title="ESP32 Radio" width="500" height="300"></p>
+<p><img src="Photos\RemoteControlMap_RC406_rev1.10.png" title="ESP32 Radio" width="500" height="400"></p>
 
 
 ## Usage
-Radio can be build only with ESP32-S3 dev. module and PCM5102A. In this configartion last station, memory bank number and volume will be stored in EEPROM. Control is possible via web page or IR remote control RC-406.
-For full experience connect SD card (look on schematic or source code), encoder, IR receiver.
+Minimum radio can be build only with two compoents - ESP32-S3 dev. module and PCM5102A. In this configartion last station, memory bank number and volume will be stored in EEPROM. Control is possible via web page or IR remote control RC-406.
+For full experience connect encoder, IR receiver.
 
-NEC standard codes for remote controler are stored on SD card in "remote.txt" file. Example files you can find inside "SD card content" folder.
+NEC standard codes for remote controler are stored in "remote.txt" file. You can learn your IR remote by webpage. 
+
 
 ### Radio Station URLs
 The radio streams URL addresses are defined in banks files, each bank is downloaded at first run and stored on SD card as separate txt file: Bank01.txt, Bank02.txt etc.

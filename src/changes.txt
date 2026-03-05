@@ -1,5 +1,31 @@
 Changes tracking file for ESP32 -  "Evo Internet Radio" - Evo_V3
 
+3.20.04
+
+ESP32 CORE 3.3.7 + own FLAC libs
+AsyncTCP 3.4.10
+Async WebServer 3.10.0
+Audio i2c lib 3.4.4x
+
+- new range of Equalizer settings (-12dB - +12dB) according to new audio lib
+- Balance option add in equalizer menu (-16dB - +16dB)
+- WiFi signal indicatior add to Web Page
+- VU clippin9g issue with rollback eliminated
+- IR Remote web learing interface
+- ADC Keyboard keys extended by adding Arrow Keys, Preset On/Off key
+- Rename of ADC Key signals
+- Standby LED now is also status LED during radio startup (timer4 added in code)
+- Preset option add for quick access to station 1-10 on each Bank
+- New Analog VU meter as Screen mode 4
+- New Digital VU meter as Screen mode 5
+- Support TAS5805 integration (experimental)
+- Add support for Autostorage with SD card / SPIFFS / LittleFS
+
+
+--------------------------------
+3.19.70 IS THE LAST VERSION COMPATIBLE WITH AUDIO LIB "ESP32-audioI2S-master by schreibfaul1" - 3.4.4l 
+CoreESP32 3.3.3 used until this revision
+
 3.19.70
 - Replace SPIFFS by LittleFS 
 - Auto dedection of SD card / Little FS storage - sitll experimental but should work correct
