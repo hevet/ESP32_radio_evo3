@@ -1,0 +1,2 @@
+Arduino IDE 2.3.6
+Lib list is now inside source code.
