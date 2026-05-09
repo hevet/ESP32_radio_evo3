@@ -15,10 +15,10 @@
 
 ## Overview
 This is project of Internet Radio Streamer called "Evo". Hardware was buid using EPS32-S3 and DAC codec PCM5102A. Construction allows to listen varius music station from all around the world.
-Working properly with streams coded in MP3, AAC, VORBIS and FLAC up to 2000kbit ! Support all operations like volume control, stations changes, memory bank change, power on/off on single rotary 
+Working properly with streams coded in MP3, AAC, VORBIS and FLAC up to 2000kbit! Support all operations like volume control, stations changes, memory bank change, power on/off on single rotary 
 encoder. Support infrared remote controls working on NEC standars (38kHz) and full control over web page and Android APP.
 
-Many people is mixing wiht others (yoRadio) - Evo is NOT based on yoRadio. Streamer was fully developed in Poland.
+Many people is mixing wiht others (yoRadio) - Evo is NOT based on yoRadio. Evo Radio streamer was developed entirely in Poland.
 
 Functions:
 - Internet radio stream station from bank files (can be stored on SD card/internal LittleFS or downloaded from GitHub)
@@ -36,6 +36,13 @@ Functions:
 - Power on/off from remote controller
 - Sleep timer
 
+
+## FLAC stations
+<p>Smoothjazz.com.pl 16bit 1Mbps and AIDA Radio 24bit 2Mpbs!
+<br>
+<img src="Photos\flac1.png" title="ESP32 Radio" width="512" height="128">
+<img src="Photos\flac2.png" title="ESP32 Radio" width="512" height="128">
+<p>
 
 ## Display Modes
 <img src="Photos\ScreenMode0.png" title="ESP32 Radio" width="512" height="128">
@@ -86,14 +93,18 @@ For Platformio look into src folder -> Platformio folder and Platformio.ini file
 Radio has buit in small web server with simple webpage for list stations, bank select, volume control and access to settings menu
 <p><img src="Photos\RadioWeb1.png" title="ESP32 Radio" width="750" height="580"></p>
 
+## Radio Browser
+The built-in Radio Browser search page allows you to search for various radio stations around the world, and play or test them instantly on Evo Radio.
+<p><img src="Photos\Radiobrowser.png" title="Evo Internet Radio - Radio Browser" width="650" height="580"></p>
+
 ## Android APK
 There is small Android APK wirtten for this project giving possibily to direct control Evo radio from mobile phone.
-<img src="Photos\AndroidAPK.jpg" title="ESP32 Radio APK" width="245" height="499">
+<img src="Photos\AndroidAPK.jpg" title="Evo Internet Radio - Radio Android APK" width="245" height="499">
 
-## Remote Control
-There is pre-coded Remote Controler RC-406 (Kenwood clone). You can change it by editing remote.txt file on SD card.
+There is a pre-coded remote controller RC-406 (Kenwood clone). You can change the settings via a simple web interface or by editing the remote.txt file stored in memory (SD card or internal flash).
+<p><img src="Photos\RemoteControlWeb.png" title="Evo Internet Radio - Remote config over web" width="350" height="400"></p>
 Key mapping:
-<p><img src="Photos\RemoteControlMap_RC406_rev1.10.png" title="ESP32 Radio" width="500" height="400"></p>
+<p><img src="Photos\RemoteControlMap_RC406_rev1.10.png" title="Evo Internet Radio - Remote config" width="500" height="400"></p>
 
 
 ## Usage

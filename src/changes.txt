@@ -1,7 +1,22 @@
 Changes tracking file for ESP32 -  "Evo Internet Radio" - Evo_V3
 
-3.20.04
+3.20.14
 
+ESP32 Core: 3.3.8 + "FLAC" lwip libs recompiled based on IDF 5.5.4
+Arduino: 2.3.6
+
+- volume range change ( 0- 21/42) - 0 set MUTE flag
+- TI D-Amp with PCM - TAS configuration corrected
+- VU meter, mode 3 corrected right value (bug correction)
+- station list - corrected proper set cursor to current station from IR remote
+- settings add, change station from list without confirmation by encoder button
+- code corretion when "Play from URL" - now display correct station name
+- corrected name for "Power button" during remote learning process
+- code house keeping
+
+
+
+3.20.04
 ESP32 CORE 3.3.7 + own FLAC libs
 AsyncTCP 3.4.10
 Async WebServer 3.10.0
