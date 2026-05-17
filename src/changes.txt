@@ -1,12 +1,13 @@
 Changes tracking file for ESP32 -  "Evo Internet Radio" - Evo_V3
 
 3.20.14
-
-ESP32 Core: 3.3.8 + "FLAC" lwip libs recompiled based on IDF 5.5.4
-Arduino: 2.3.6
+ESP32 Core: 3.3.8
+"FLAC" libs: recompiled on ESP-IDF 5.5.4
+Arduino 2.3.6
 
 - volume range change ( 0- 21/42) - 0 set MUTE flag
-- TI D-Amp with PCM - TAS configuration corrected
+- Auto RTC sync every 3h in sleep mode
+- TAS configuration corrected
 - VU meter, mode 3 corrected right value (bug correction)
 - station list - corrected proper set cursor to current station from IR remote
 - settings add, change station from list without confirmation by encoder button
