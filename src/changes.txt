@@ -1,5 +1,15 @@
 Changes tracking file for ESP32 -  "Evo Internet Radio" - Evo_V3
 
+3.22.00
+ESP32 Core: 3.3.12 based on ESP-IDF 5.5.5
+liblwip.a, libesp_netif.a, "FLAC" libs: recompiled on ESP-IDF 5.5.5
+Arduino 2.3.10
+Audio lib: 4.0.0t commits 28.09.2026
+New audio_event for new Audio library introduced
+New mode - Spectrum analyzer full screen
+Centered mode - bottm Vu meter replaced by spectrum analyzer
+
+
 3.20.14
 ESP32 Core: 3.3.8
 "FLAC" libs: recompiled on ESP-IDF 5.5.4
