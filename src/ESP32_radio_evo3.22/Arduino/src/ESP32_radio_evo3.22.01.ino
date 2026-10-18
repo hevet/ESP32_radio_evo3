@@ -79,9 +79,9 @@
 //#define twoEncoders // Wlaczamy drugi enkoder
 
 //--------------- DODATKi developerskie - Komunikacja RS232, Wzmacniacz TAS, sniffer OLED itp. ---------------
-#define SERIALCOM   // Komunikacja dwukierunkowa RS232
+//#define SERIALCOM   // Komunikacja dwukierunkowa RS232
 //#define TAS5805       // Kompilacja dla wersji ze Wzmacniacz TAS5805 z wbudowanym DAC, zakomentowac w przypadku tandardowe PCM5102
-#define OLED_SNIFF
+//#define OLED_SNIFF
 
 //--------------- PRZYCISKI i LEDy definicja ---------------
 //#define SW_POWER 8           // Dedykowany przycisk Power

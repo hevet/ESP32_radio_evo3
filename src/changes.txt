@@ -1,6 +1,6 @@
 Changes tracking file for ESP32 -  "Evo Internet Radio" - Evo_V3
 
-3.22.00
+3.22.01
 ESP32 Core: 3.3.12 based on ESP-IDF 5.5.5
 liblwip.a, libesp_netif.a, "FLAC" libs: recompiled on ESP-IDF 5.5.5
 Arduino 2.3.10
